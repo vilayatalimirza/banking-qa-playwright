@@ -17,19 +17,25 @@ export function parseMoney(input: string): number {
     s = s.slice(1, -1);
   }
 
-  const m = /^(-|\$-)?\$?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?$/.exec(s);
+  const hasMinus = s.startsWith("-") || s.startsWith("$-");
+  if (s.startsWith("-$") || s.startsWith("$-")) {
+    s = s.slice(2);
+  } else if (s.startsWith("-") || s.startsWith("$")) {
+    s = s.slice(1);
+  }
 
-  if (!m || (parenthesized && m[1])) {
+  const m = /^(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?$/.exec(s);
+  if (!m || (parenthesized && hasMinus)) {
     throw new TypeError(`Invalid money string: "${input}"`);
   }
 
-  const whole = Number(m[2].replaceAll(",", ""));
-  const frac = Number((m[3] ?? "").padEnd(2, "0"));
+  const whole = Number(m[1].replaceAll(",", ""));
+  const frac = Number((m[2] ?? "").padEnd(2, "0"));
   const cents = whole * 100 + frac;
 
   assertCents(cents);
 
-  return (parenthesized || m[1]) && cents !== 0 ? -cents : cents;
+  return (parenthesized || hasMinus) && cents !== 0 ? -cents : cents;
 }
 
 export function formatMoney(cents: number): string {

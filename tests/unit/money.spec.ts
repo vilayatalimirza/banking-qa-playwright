@@ -18,6 +18,7 @@ const validCases: Array<[string, number]> = [
   ['$0.00', 0],
   ['-$0.00', 0],
   ['1,000,000.01', 100000001],
+  ['90071992547409.91', Number.MAX_SAFE_INTEGER],
 ];
 
 for (const [input, expectedCents] of validCases) {
@@ -35,6 +36,10 @@ const invalidCases = [
   '(-5)',
   '1e3',
   '$',
+  '$-$5',
+  '(5',
+  '5)',
+  '()',
 ];
 
 for (const input of invalidCases) {
@@ -43,7 +48,29 @@ for (const input of invalidCases) {
   });
 }
 
-// Values used to verify that formatting and parsing preserve cents.
+test('parseMoney rejects cents beyond the safe integer boundary', () => {
+  expect(() => parseMoney('90071992547409.92')).toThrow(
+    /Invalid cents value/,
+  );
+});
+
+// Exact formatter output tests
+const formattingCases: Array<[number, string]> = [
+  [123450, '$1,234.50'],
+  [-2005, '-$20.05'],
+  [0, '$0.00'],
+  [5, '$0.05'],
+  [-5, '-$0.05'],
+  [100000001, '$1,000,000.01'],
+];
+
+for (const [cents, expected] of formattingCases) {
+  test(`formatMoney(${cents}) returns "${expected}"`, () => {
+    expect(formatMoney(cents)).toBe(expected);
+  });
+}
+
+// Round-trip tests
 const roundTripCases = [
   0,
   1,

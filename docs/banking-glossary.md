@@ -72,6 +72,12 @@ jurisdiction; use product requirements and applicable rules as the source of tru
 - 🎓 **Interview-ready — Statement:** A dated summary of posted transactions, fees, interest, and
   balances for an account or period.
   - 🧒 **Simple explanation:** It is a report card showing what came in, what went out, and what is left for a period.
+- 🎓 **Interview-ready — Currency minor unit (ISO 4217):** The smallest standard unit used to
+  express an amount in a currency. USD has 2 decimal places, JPY has 0, and
+  KWD has 3. Store an integer amount in that currency's minor unit together
+  with its currency code; multiplying by 100 is appropriate only for a
+  two-decimal currency.
+  - 🧒 **Simple explanation:** Different currencies split money into different-sized small pieces, so keep the currency name with the amount and count the right-sized pieces.
 
 ## 🟣 Accounting and transaction language
 
@@ -359,6 +365,13 @@ jurisdiction; use product requirements and applicable rules as the source of tru
 - 🎓 **Interview-ready — Accrued interest:** Interest earned or owed over time but not yet posted or
   paid.
   - 🧒 **Simple explanation:** It is interest that has built up but has not yet been added to the account or paid.
+- 🎓 **Interview-ready — Rounding rule:** The policy for converting fractional minor units produced
+  by calculations such as fees or interest into amounts that can be posted.
+  Half-up always rounds an exact tie in the same direction, which can create
+  systematic bias over many ties. Half-even rounds an exact tie to the nearest
+  even minor unit, balancing tie outcomes over time. Systems processing the
+  same amounts must use consistent rules to avoid reconciliation differences.
+  - 🧒 **Simple explanation:** When a calculation lands between two spendable amounts, the rule picks one. Using the same rule keeps different systems from disagreeing by a tiny amount.
 - 🎓 **Interview-ready — Amortization:** Repayment over time through scheduled payments that reduce
   principal and cover interest and, where applicable, fees.
   - 🧒 **Simple explanation:** It is paying a loan down in planned installments that cover interest and gradually reduce what you owe.
@@ -439,6 +452,12 @@ jurisdiction; use product requirements and applicable rules as the source of tru
   double-entry postings, unique transaction references, or no spend beyond
   available funds (unless an overdraft is allowed).
   - 🧒 **Simple explanation:** It is a rule the money records must always obey, such as both sides of an entry balancing.
+- 🎓 **Interview-ready — Conservation of money:** For a closed internal movement with no fees,
+  external flows, or other balance-changing events, the total across all
+  affected accounts is unchanged; only the allocation between accounts changes.
+  A test can compare the total before and after the movement rather than rely
+  on hard-coded account balances.
+  - 🧒 **Simple explanation:** Moving money between your own pockets changes which pocket holds it, not how much you have altogether.
 - 🎓 **Interview-ready — At-most-once financial effect:** A retry or duplicate message must not
   create a second charge, transfer, refund, or ledger posting.
   - 🧒 **Simple explanation:** It means a repeated message cannot accidentally create a second payment or refund.
