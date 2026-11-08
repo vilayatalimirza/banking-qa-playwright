@@ -22,15 +22,25 @@ export class OpenAccountPage {
     await this.page.getByRole('link', { name: 'Open New Account' }).click();
   }
 
-  /** Opens an account funded from `fromAccountId` and returns the new account number. */
-  async openAccount(type: AccountType, fromAccountId: string): Promise<string> {
+  /** Chooses the account type and funding account without submitting. */
+  async fill(type: AccountType, fromAccountId: string): Promise<void> {
     await this.type.selectOption(type);
     await this.fromAccount.selectOption(fromAccountId);
+  }
+
+  /** Opens an account funded from `fromAccountId` and returns the new account number. */
+  async openAccount(type: AccountType, fromAccountId: string): Promise<string> {
+    await this.fill(type, fromAccountId);
     await this.submit.click();
     await expect(this.page.getByRole('heading', { name: 'Account Opened!' })).toBeVisible();
 
     // The new account number is the only all-digits link on the confirmation page.
     const newId = await this.page.getByRole('link', { name: /^\d+$/ }).innerText();
     return newId.trim();
+  }
+
+  /** Double-clicks Open New Account: two clicks in a few milliseconds. */
+  async submitTwice(): Promise<void> {
+    await this.submit.dblclick();
   }
 }

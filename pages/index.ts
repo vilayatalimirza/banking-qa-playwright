@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { AccountDetailsPage } from './AccountDetailsPage';
 import { BillPayPage } from './BillPayPage';
+import { FindTransactionsPage } from './FindTransactionsPage';
 import { HomePage } from './HomePage';
 import { OpenAccountPage } from './OpenAccountPage';
 import { OverviewPage } from './OverviewPage';
@@ -20,6 +21,7 @@ export class Pages {
   readonly billPay: BillPayPage;
   readonly loan: RequestLoanPage;
   readonly profile: UpdateProfilePage;
+  readonly findTransactions: FindTransactionsPage;
 
   constructor(page: Page) {
     this.home = new HomePage(page);
@@ -31,5 +33,6 @@ export class Pages {
     this.billPay = new BillPayPage(page);
     this.loan = new RequestLoanPage(page);
     this.profile = new UpdateProfilePage(page);
+    this.findTransactions = new FindTransactionsPage(page);
   }
 }

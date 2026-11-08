@@ -1,6 +1,12 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page, type Request } from '@playwright/test';
 import type { Payee } from '../data/factories';
+import type { SubmitOutcome } from './TransferPage';
 import { toDecimalInput } from '../utils/format';
+
+const NO_REQUEST_WAIT_MS = 1500;
+
+const isBillPayPost = (request: Request): boolean =>
+  request.method() === 'POST' && /billpay/i.test(request.url());
 
 export class BillPayPage {
   private readonly payeeName: Locator;
@@ -51,7 +57,8 @@ export class BillPayPage {
     await this.page.getByRole('link', { name: 'Bill Pay' }).click();
   }
 
-  async pay(payee: Payee, amountCents: number, fromAccountId: string): Promise<void> {
+  /** Fills the whole form with raw amount text (so tests can type invalid amounts) without submitting. */
+  async fill(payee: Payee, amountText: string, fromAccountId: string): Promise<void> {
     await this.payeeName.fill(payee.name);
     await this.address.fill(payee.address);
     await this.city.fill(payee.city);
@@ -60,9 +67,39 @@ export class BillPayPage {
     await this.phone.fill(payee.phone);
     await this.accountNumber.fill(payee.accountNumber);
     await this.verifyAccount.fill(payee.accountNumber);
-    await this.amount.fill(toDecimalInput(amountCents));
+    await this.amount.fill(amountText);
     await this.fromAccount.selectOption(fromAccountId);
+  }
+
+  /** Presses Send Payment and reports whether a request went out and how the server answered. */
+  async clickAndObserve(): Promise<SubmitOutcome> {
+    const requestPromise = this.page
+      .waitForRequest(isBillPayPost, { timeout: NO_REQUEST_WAIT_MS })
+      .catch(() => null);
+    await this.submit.click();
+    const request = await requestPromise;
+    if (!request) {
+      return { requestSent: false, status: null };
+    }
+    const response = await request.response();
+    return { requestSent: true, status: response ? response.status() : null };
+  }
+
+  /** Fill + submit with raw text. Does not assume success. */
+  async attempt(payee: Payee, amountText: string, fromAccountId: string): Promise<SubmitOutcome> {
+    await this.fill(payee, amountText, fromAccountId);
+    return this.clickAndObserve();
+  }
+
+  /** Happy path: pay a valid amount and wait for the confirmation. */
+  async pay(payee: Payee, amountCents: number, fromAccountId: string): Promise<void> {
+    await this.fill(payee, toDecimalInput(amountCents), fromAccountId);
     await this.submit.click();
     await expect(this.page.getByRole('heading', { name: 'Bill Payment Complete' })).toBeVisible();
+  }
+
+  /** Double-clicks Send Payment: two clicks in a few milliseconds. */
+  async submitTwice(): Promise<void> {
+    await this.submit.dblclick();
   }
 }
