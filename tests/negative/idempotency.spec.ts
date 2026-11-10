@@ -1,5 +1,5 @@
 import { buildPayee } from '../../data/factories';
-import { test } from '../../fixtures';
+import { test } from '../../fixtures/tracked';
 import { accountById } from '../../pages/OverviewPage';
 import { Checks } from '../../utils/checks';
 import { observe } from '../../utils/findings';

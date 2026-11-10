@@ -10,7 +10,7 @@ export class FindTransactionsPage {
   constructor(private readonly page: Page) {
     // Unlabelled form controls (and four buttons that all say "Find Transactions"): ids are the hook.
     this.account = page.locator('#accountId');
-    this.amount = page.locator('input[id="criteria.amount"]'); // attribute selector: the id contains a dot
+    this.amount = page.locator('#amount');
     this.findByAmountButton = page.locator('#findByAmount');
   }
 

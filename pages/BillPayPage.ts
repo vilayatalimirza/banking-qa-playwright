@@ -55,6 +55,7 @@ export class BillPayPage {
 
   async open(): Promise<void> {
     await this.page.getByRole('link', { name: 'Bill Pay' }).click();
+    await expect(this.fromAccount.locator('option').first()).toBeAttached();
   }
 
   /** Fills the whole form with raw amount text (so tests can type invalid amounts) without submitting. */
@@ -82,6 +83,9 @@ export class BillPayPage {
       return { requestSent: false, status: null };
     }
     const response = await request.response();
+    await expect(
+      this.page.getByRole('heading', { name: /Bill Payment Complete|Error!/ }),
+    ).toBeVisible();
     return { requestSent: true, status: response ? response.status() : null };
   }
 

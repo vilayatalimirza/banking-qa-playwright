@@ -33,6 +33,8 @@ export class TransferPage {
 
   async open(): Promise<void> {
     await this.page.getByRole('link', { name: 'Transfer Funds' }).click();
+    await expect(this.from.locator('option').first()).toBeAttached();
+    await expect(this.to.locator('option').first()).toBeAttached();
   }
 
   /** Fills the form with raw text (so tests can type invalid amounts) without submitting. */
@@ -53,6 +55,9 @@ export class TransferPage {
       return { requestSent: false, status: null };
     }
     const response = await request.response();
+    await expect(
+      this.page.getByRole('heading', { name: /Transfer Complete!|Error!/ }),
+    ).toBeVisible();
     return { requestSent: true, status: response ? response.status() : null };
   }
 

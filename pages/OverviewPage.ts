@@ -30,13 +30,11 @@ export class OverviewPage {
   }
 
   async open(): Promise<void> {
-    const link = this.page.getByRole('link', { name: 'Accounts Overview' });
-    const heading = this.page.getByRole('heading', { name: 'Accounts Overview' });
-
-    await expect(async () => {
-      await link.click();
-      await expect(heading).toBeVisible({ timeout: 3000 });
-    }).toPass({ timeout: 15_000 });
+    await this.page.getByRole('link', { name: 'Accounts Overview' }).click();
+    await expect(this.page).toHaveURL(/overview\.htm/);
+    await expect(
+      this.page.getByRole('heading', { name: 'Accounts Overview' }),
+    ).toBeVisible({ timeout: 15_000 });
   }
 
   /**

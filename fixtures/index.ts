@@ -7,6 +7,13 @@ interface SecondUser {
   pages: Pages;
 }
 
+export interface TwoAccounts {
+  customer: Customer;
+  pages: Pages;
+  sourceId: string;
+  savingsId: string;
+}
+
 interface Fixtures {
   /** A freshly registered customer. Registering also logs the browser in. */
   customer: Customer;
@@ -16,6 +23,8 @@ interface Fixtures {
   anonymousPages: Pages;
   /** A second customer registered in a separate, isolated browser context. */
   secondUser: SecondUser;
+  /** A logged-in customer with their default source account plus a newly opened SAVINGS account. */
+  twoAccounts: TwoAccounts;
 }
 
 export const test = base.extend<Fixtures>({
@@ -43,6 +52,17 @@ export const test = base.extend<Fixtures>({
     await secondPages.register.register(customer);
     await use({ customer, pages: secondPages });
     await context.close();
+  },
+
+  twoAccounts: async ({ pages, customer }, use) => {
+    await pages.overview.open();
+    const initial = await pages.overview.read(1);
+    const sourceId = initial.accounts[0].id;
+
+    await pages.openAccount.open();
+    const savingsId = await pages.openAccount.openAccount('SAVINGS', sourceId);
+
+    await use({ customer, pages, sourceId, savingsId });
   },
 });
 

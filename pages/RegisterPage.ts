@@ -17,6 +17,7 @@ export class RegisterPage {
   async open(): Promise<void> {
     await this.page.goto('index.htm');
     await this.page.getByRole('link', { name: 'Register' }).click();
+    await expect(this.page).toHaveURL(/register\.htm/);
     await expect(this.textField('First Name:')).toBeVisible();
   }
 
@@ -36,8 +37,10 @@ export class RegisterPage {
     ];
 
     for (const [locator, value] of fields) {
-      await locator.fill(value);
-      await expect(locator).toHaveValue(value);
+      await expect(async () => {
+        await locator.fill(value);
+        await expect(locator).toHaveValue(value, { timeout: 500 });
+      }).toPass({ timeout: 5000 });
     }
   }
 

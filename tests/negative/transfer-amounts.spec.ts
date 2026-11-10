@@ -1,4 +1,4 @@
-import { test } from '../../fixtures';
+import { test } from '../../fixtures/tracked';
 import { accountById } from '../../pages/OverviewPage';
 import { Checks } from '../../utils/checks';
 import { observe, pageMessage } from '../../utils/findings';
@@ -8,7 +8,7 @@ import { toDecimalInput } from '../../utils/format';
 //  - 'reject': refuse the amount with NO side effects
 //  - 'accept': move exactly `movedCents` and nothing else
 // A red case means "ParaBank behaves differently from this requirement": a candidate defect to triage,
-// not necessarily a bug in the test. Run `npx tsx scripts/summarize-findings.ts` for the evidence.
+// not necessarily a bug in the test. Known defects are listed in data/known-defects.ts.
 
 interface AmountCase {
   name: string;
@@ -16,11 +16,13 @@ interface AmountCase {
   outcome: 'reject' | 'accept';
   movedCents?: (balanceCents: number) => number;
   reason: string;
+  /** Zero amounts leave balances unchanged either way, so also check the statement for a recorded transaction. */
+  checkStatement?: boolean;
 }
 
 const cases: AmountCase[] = [
-  { name: 'zero', text: () => '0', outcome: 'reject', reason: 'a zero-value transfer is meaningless' },
-  { name: 'zero with decimals', text: () => '0.00', outcome: 'reject', reason: 'a zero-value transfer is meaningless' },
+  { name: 'zero', text: () => '0', outcome: 'reject', reason: 'a zero-value transfer is meaningless', checkStatement: true },
+  { name: 'zero with decimals', text: () => '0.00', outcome: 'reject', reason: 'a zero-value transfer is meaningless', checkStatement: true },
   { name: 'minimum unit (one cent)', text: () => '0.01', outcome: 'accept', movedCents: () => 1, reason: 'the smallest valid amount works' },
   { name: 'one decimal place', text: () => '12.3', outcome: 'accept', movedCents: () => 1230, reason: '12.3 means 12.30' },
   { name: 'sub-cent precision', text: () => '10.999', outcome: 'reject', reason: 'amounts finer than a cent must be refused, not silently rounded' },
@@ -57,17 +59,33 @@ for (const c of cases) {
     const received =
       accountById(after, savingsId).balanceCents - accountById(before, savingsId).balanceCents;
 
+    let zeroValueRows = 0;
+    if (c.checkStatement) {
+      await pages.overview.openAccount(sourceId);
+      const rows = await pages.details.activity();
+      zeroValueRows = rows.filter((r) => r.debitCents === 0 || r.creditCents === 0).length;
+    }
+
     const checks = new Checks();
     // Invariants: true whatever the business rules are.
     checks.check('INVARIANT', 'an internal transfer never changes the bank total', after.totalCents === before.totalCents, `before ${before.totalCents}, after ${after.totalCents}`);
     checks.check('INVARIANT', 'what the source loses the destination gains', received === moved, `source -${moved}, destination +${received}`);
     checks.check('INVARIANT', 'a transfer never pulls money INTO the source', moved >= 0, `source moved ${moved}`);
+    // A confirmation page must tell the truth: "Transfer Complete" with no money moved is a UI/ledger mismatch.
+    // (Zero amounts legitimately move nothing; they are judged by their own rules above.)
+    const claimedSuccess = /Transfer Complete/i.test(message);
+    if (!c.name.startsWith('zero')) {
+      checks.check('INVARIANT', 'a success confirmation means the money actually moved', !(claimedSuccess && moved === 0), `confirmation shown: ${claimedSuccess}, moved ${moved}`);
+    }
     // Requirement: what a bank is expected to do with this input.
     if (c.outcome === 'reject') {
       checks.check('REQUIREMENT', c.reason, moved === 0, `moved ${moved} cents`);
     } else {
       const expected = c.movedCents ? c.movedCents(balance) : 0;
       checks.check('REQUIREMENT', c.reason, moved === expected, `moved ${moved}, expected ${expected}`);
+    }
+    if (c.checkStatement) {
+      checks.check('REQUIREMENT', 'a zero-value transaction must not be recorded', zeroValueRows === 0, `${zeroValueRows} zero-value statement rows`);
     }
 
     observe('transfer-amount', {
@@ -77,6 +95,7 @@ for (const c of cases) {
       requestSent: submit.requestSent,
       status: submit.status,
       movedCents: moved,
+      zeroValueRows,
       message,
       verdict: checks.verdict,
     });

@@ -36,4 +36,9 @@ test.describe('page contracts', { tag: ['@contract'] }, () => {
     await pages.profile.open();
     await checkContract(pages.profile.contract);
   });
+
+  test('Find Transactions', async ({ pages }) => {
+    await pages.findTransactions.open();
+    await checkContract(pages.findTransactions.contract);
+  });
 });

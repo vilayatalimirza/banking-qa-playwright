@@ -1,5 +1,5 @@
 import { buildPayee } from '../../data/factories';
-import { test } from '../../fixtures';
+import { test } from '../../fixtures/tracked';
 import { Checks } from '../../utils/checks';
 import { observe, pageMessage } from '../../utils/findings';
 import { toDecimalInput } from '../../utils/format';

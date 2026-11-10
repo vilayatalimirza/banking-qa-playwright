@@ -1,8 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { TransferPage } from '../../pages/TransferPage';
 
 // Local mock of the transfer form: proves TransferPage.attempt() tells apart
 // "server accepted", "server rejected" and "page blocked the input before sending anything".
+// Like the real page, the mock shows a result heading once the server answers
+// ("Transfer Complete!" on success, "Error!" otherwise), because TransferPage waits for it.
 const FORM = `
 <input id="amount">
 <select id="fromAccountId"><option value="111">111</option></select>
@@ -12,11 +14,16 @@ const FORM = `
   document.getElementById('go').onclick = () => {
     const value = document.getElementById('amount').value;
     if (value === 'blocked') return; // client-side validation: no request is sent
-    fetch('https://mock.test/services_proxy/bank/transfer?amount=' + encodeURIComponent(value), { method: 'POST' });
+    fetch('https://mock.test/services_proxy/bank/transfer?amount=' + encodeURIComponent(value), { method: 'POST' })
+      .then((response) => {
+        const heading = document.createElement('h1');
+        heading.textContent = response.ok ? 'Transfer Complete!' : 'Error!';
+        document.body.appendChild(heading);
+      });
   };
 </script>`;
 
-async function mockPage(page: import('@playwright/test').Page, status: number): Promise<TransferPage> {
+async function mockPage(page: Page, status: number): Promise<TransferPage> {
   await page.route('https://mock.test/**', (route) =>
     route.fulfill({ status, headers: { 'access-control-allow-origin': '*' }, body: 'x' }),
   );
