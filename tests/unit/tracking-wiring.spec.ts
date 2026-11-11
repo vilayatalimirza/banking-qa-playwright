@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
 // data/known-defects.ts. A spec that quietly imports the plain fixtures would report every open bug as a failure.
 // If one of these goes red, change that file's `test` import to '../../fixtures/tracked' (or '../../fixtures/api').
 
-for (const dir of ['negative', 'api', 'hybrid', 'resilience']) {
+for (const dir of ['negative', 'api', 'hybrid', 'resilience', 'security', 'a11y', 'visual']) {
   for (const file of readdirSync(join('tests', dir)).filter((name) => name.endsWith('.spec.ts'))) {
     test(`${dir}/${file} imports a fixture that tracks known defects`, () => {
       const source = readFileSync(join('tests', dir, file), 'utf8');

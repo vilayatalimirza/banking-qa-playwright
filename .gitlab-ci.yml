@@ -1,0 +1,78 @@
+# Same pipeline as .github/workflows/playwright.yml, for GitLab CI.
+# The image tag must match the @playwright/test version in package.json (check with: npx playwright --version).
+image: mcr.microsoft.com/playwright:v1.64.1-noble
+
+variables:
+  CI: 'true'
+  BASE_URL: 'https://parabank.parasoft.com/parabank/'
+  npm_config_cache: '$CI_PROJECT_DIR/.npm'
+
+stages: [unit, test, cross-browser]
+
+default:
+  cache:
+    key:
+      files: [package-lock.json]
+    paths: [.npm/]
+  before_script:
+    - npm ci
+
+# Run on merge requests, the default branch and the nightly schedule.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# One pipeline at a time against the shared demo site.
+.demo_lock:
+  resource_group: parabank-demo
+
+unit:
+  stage: unit
+  script:
+    - npx tsc --noEmit
+    - npx playwright test -c playwright.ci.config.ts --project=chromium tests/unit
+
+suite:
+  extends: .demo_lock
+  stage: test
+  timeout: 90 minutes
+  script:
+    - npx playwright test -c playwright.ci.config.ts --project=chromium tests/e2e tests/contract tests/api tests/hybrid tests/negative tests/resilience tests/security tests/a11y
+  after_script:
+    - npx tsx scripts/defect-register.ts || true
+    - npx tsx scripts/summarize-findings.ts || true
+  artifacts:
+    when: always
+    expire_in: 2 weeks
+    paths: [playwright-report/, test-results/, findings/observations.jsonl]
+    reports:
+      junit: test-results/junit.xml
+
+smoke:
+  extends: .demo_lock
+  stage: cross-browser
+  timeout: 30 minutes
+  parallel:
+    matrix:
+      - PROJECT: [firefox-smoke, webkit-smoke, mobile-smoke]
+  script:
+    - npx playwright test -c playwright.ci.config.ts --project=$PROJECT
+  artifacts:
+    when: always
+    expire_in: 2 weeks
+    paths: [playwright-report/, test-results/]
+    reports:
+      junit: test-results/junit.xml
+
+visual:
+  extends: .demo_lock
+  stage: cross-browser
+  allow_failure: true # advisory until baselines are committed (see docs/RUNBOOK.md)
+  script:
+    - npx playwright test -c playwright.ci.config.ts --project=visual
+  artifacts:
+    when: always
+    expire_in: 2 weeks
+    paths: [playwright-report/, test-results/]

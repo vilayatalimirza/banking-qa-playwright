@@ -17,6 +17,16 @@ Open defects are tracked in `data/known-defects.ts`; each test is marked "expect
 | BUG-009 | Unauthenticated API call moves money out of another customer's account | Critical | P1 | Confirmed |
 | BUG-010 | Account details readable without authentication | High | P1 | Confirmed |
 | BUG-011 | Login API takes username and password in the URL path | Medium | P2 | Confirmed (observed in use) |
+| BUG-012 | No brute-force protection on login | High | P2 | Confirmed |
+| BUG-013 | One-character password accepted at registration | Medium | P2 | Confirmed |
+| BUG-014 | Missing security headers (clickjacking, CSP, HSTS, Referrer-Policy) | Medium | P3 | Confirmed |
+| BUG-015 | Session cookie not marked Secure | Medium | P2 | Confirmed |
+| BUG-016 | Signed-in pages send no Cache-Control | Low | P3 | Confirmed |
+| BUG-017 | Admin console reachable by an anonymous visitor | Critical | P1 | Confirmed (page only looked at, never used) |
+| BUG-018 | Session id unchanged at login (session fixation) | Medium | P2 | Confirmed |
+| BUG-019 | Customer A can open customer B's account details page by URL | Critical | P1 | To confirm (oracle strengthened) |
+| BUG-020 | Anonymous visits to protected pages answer "An internal error has occurred" | Low | P3 | Observed |
+| BUG-021 | Serious/critical WCAG 2.x A/AA accessibility violations on every page | High | P2 | Confirmed (automated axe-core scan) |
 
 ---
 
@@ -130,9 +140,100 @@ Open defects are tracked in `data/known-defects.ts`; each test is marked "expect
 **Expected:** credentials in a POST body (or a token flow), never in the URL.
 **Evidence:** every API test logs in this way successfully. There is no dedicated test; add one in Package D if you want it tracked.
 
+## BUG-012: No brute-force protection on login
+**Severity:** High. **Priority:** P2. **Frequency:** 1 of 1.
+**Steps:** send 10 wrong passwords for one customer, then the correct password (API login; account created by the test).
+**Actual:** all 10 answered HTTP 400 with no lockout, no 429 and no slowdown (619 ms first, 375 ms last); the correct password then logged in (HTTP 200).
+**Expected:** throttling or temporary lockout after repeated failures.
+**Impact:** unlimited password guessing and credential stuffing.
+**Test:** `repeated wrong passwords lead to a lockout or throttle`.
+
+## BUG-013: Weak password accepted
+**Severity:** Medium. **Priority:** P2. **Frequency:** 1 of 1.
+**Actual:** an account registered with the password `1` can log in.
+**Expected:** a minimum length and complexity policy.
+**Test:** `registration refuses a trivially weak password`.
+
+## BUG-014: Missing security headers
+**Severity:** Medium. **Priority:** P3. **Frequency:** 1 of 1.
+**Actual (login page):** `X-Content-Type-Options: nosniff` is present. Missing: X-Frame-Options or CSP `frame-ancestors`, Content-Security-Policy, Strict-Transport-Security, Referrer-Policy. Server header: `cloudflare` (the edge may be where these should be added).
+**Impact:** clickjacking, no HTTPS pinning, no script-source restrictions, URL leakage in referrers.
+**Test:** `the login page sends the standard security headers`.
+
+## BUG-015: Session cookie not Secure
+**Severity:** Medium. **Priority:** P2. **Frequency:** 1 of 1.
+**Actual:** `JSESSIONID` is HttpOnly and SameSite=Lax (good) but `secure: false`.
+**Expected:** Secure, so the cookie is never sent over plain HTTP.
+**Test:** `the session cookie carries the protective flags`.
+
+## BUG-016: Signed-in pages are cacheable
+**Severity:** Low. **Priority:** P3. **Frequency:** 1 of 1.
+**Actual:** the Overview response has no `Cache-Control` header.
+**Expected:** `no-store` for account pages. Mitigated in practice: the Back-button-after-logout test found no account rows.
+**Test:** `signed-in pages are not cacheable`.
+
+## BUG-017: Admin console reachable anonymously
+**Severity:** Critical. **Priority:** P1. **Frequency:** 1 of 1.
+**Actual:** `admin.htm` shows its administration content (page text matched "Administration", "Data Access Mode", "Initialize") to a visitor with no login. The test only looks at the page; its buttons were never clicked.
+**Impact:** anyone can reach functions that reset or reconfigure the application, including the shared demo database. This plausibly explains why account numbers dropped from about 33k to about 17k between runs (a reset by someone else); that link is a hypothesis, not proven.
+**Test:** `the admin console is not reachable by an anonymous visitor`.
+
+## BUG-018: Session fixation
+**Severity:** Medium. **Priority:** P2. **Frequency:** 1 of 1.
+**Actual:** `JSESSIONID` had the same value before and after login.
+**Expected:** a new session id at login.
+**Impact:** an attacker who plants a known session id in a victim's browser can use it after the victim logs in.
+**Test:** `logging in issues a new session id (no session fixation)`.
+
+## BUG-019: Customer A can open customer B's account page (to confirm)
+**Severity:** Critical. **Priority:** P1. **Frequency:** 1 of 1 (heading level).
+**Actual:** customer A requested `activity.htm?id=<B's account>` and got the "Account Details" page. The first oracle only looked for the heading, which loads before the data, so it did not prove B's data was shown.
+**Why it is probably real:** the API returns any account to anyone (BUG-010).
+**Next:** the test now looks for B's account number in the page (with a control proving the same detection works for A's own account).
+**Test:** `a customer cannot open another customer's account page by URL`.
+
+## BUG-020: Anonymous visits to protected pages produce an internal-error page
+**Severity:** Low. **Priority:** P3.
+**Actual:** opening any protected page without a session shows "Error! An internal error has occurred and has been logged." (the login form is still shown, so no data leaks).
+**Expected:** a redirect to the login page. The message suggests an unhandled exception for logged-out visitors.
+**Evidence:** `protected-page` rows in the findings table (7 of 7 pages).
+
+## BUG-021: Serious and critical accessibility violations on every page
+**Severity:** High. **Priority:** P2. **Frequency:** 11 of 11 pages scanned (axe-core, WCAG 2.0/2.1 level A and AA, one run).
+**Impact:** screen-reader and keyboard users cannot reliably complete forms (transfer, bill pay, registration); low-contrast text is hard to read; regulators and customers expect WCAG 2.1 AA from consumer banking services.
+**Caveat:** an automated scan finds only part of the real problems; this is a floor. Passing the scan would not prove the site is accessible.
+
+Four distinct problems (axe rule ids), with elements affected per page:
+
+| Page | label (critical) | select-name (critical) | image-alt (critical) | link-name | color-contrast | html-has-lang |
+|---|---|---|---|---|---|---|
+| index.htm (login) | 2 | | 1 | 1 | 6 | 1 |
+| register.htm | 13 | | 1 | 1 | 14 | 1 |
+| about.htm | 2 | | 1 | 1 | 3 | 1 |
+| contact.htm | 6 | | 1 | 1 | 7 | 1 |
+| overview.htm | | | 1 | 1 | 4 | 1 |
+| openaccount.htm | | 2 | 1 | 1 | 3 | 1 |
+| transfer.htm | 1 | 2 | 1 | 1 | 3 | 1 |
+| billpay.htm | 9 | 1 | 1 | 1 | 13 | 1 |
+| findtrans.htm | 5 | 1 | 1 | 1 | 3 | 1 |
+| updateprofile.htm | 7 | | 1 | 1 | 10 | 1 |
+| requestloan.htm | 2 | 1 | 1 | 1 | 6 | 1 |
+
+1. **Form fields without accessible names** (`label`, `select-name`; WCAG 1.3.1, 4.1.2, level A): inputs and dropdowns are not associated with their visible labels. Matches what the page objects already had to work around (login inputs are found by `name` attribute).
+2. **Image without alternative text and link without a name** (`image-alt`, `link-name`; WCAG 1.1.1, 2.4.4, level A): one image and one link on every page, probably the header logo.
+3. **Insufficient colour contrast** (`color-contrast`; WCAG 1.4.3, level AA): 3 to 14 elements per page.
+4. **No page language** (`html-has-lang`; WCAG 3.1.1, level A): the `<html>` element has no `lang` attribute.
+
+**Tests:** `accessibility: <page> has no serious violations` for index, register, about and contact, and `accessibility: signed-in pages have no serious violations` (7 pages).
+**Not affected:** the keyboard-only login test passes (username, Tab, password, Enter logs in).
+
 ---
 
 ## Behaviours confirmed correct
+- Accessibility: the login form can be completed with the keyboard alone.
+- Visual: the 6 layout baselines (login, registration, transfer, bill pay, open account, overview) compare identically on a second run, so the masks hide everything dynamic.
+- Cross-browser: the 5 smoke journeys (auth, overview, open account, transfer, bill pay) pass in Firefox, WebKit and a Pixel 7 viewport.
+- Security: login credentials travel in a POST body and never appear in a URL; logout kills the session on the server; a stolen session cookie replayed after logout is dead; the Back button after logout shows no account data; protected pages never show the signed-in UI to an anonymous visitor.
 - API: a wrong password is refused; account and login responses match the expected shape; API and UI always agree on balances and statements.
 - API: a transfer to or from a non-existent account is refused and no money is destroyed; a missing amount is refused.
 - Resilience: a cut connection, offline mode and a server 500 each leave balances untouched and the UI shows no false success; a slow server (3 s) still applies a single click exactly once.

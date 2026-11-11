@@ -128,6 +128,76 @@ export const KNOWN_DEFECTS: Record<string, KnownDefect> = {
     summary: 'API accepts 1e2 (HTTP 200) and moves $100.00 within 2 s',
     status: 'confirmed',
   },
+  'repeated wrong passwords lead to a lockout or throttle': {
+    id: 'BUG-012',
+    summary: 'No brute-force protection: 10 wrong passwords, then the correct one still logs in',
+    status: 'confirmed',
+  },
+  'registration refuses a trivially weak password': {
+    id: 'BUG-013',
+    summary: 'A one-character password is accepted at registration',
+    status: 'confirmed',
+  },
+  'the login page sends the standard security headers': {
+    id: 'BUG-014',
+    summary: 'Missing X-Frame-Options/CSP frame-ancestors, Content-Security-Policy, HSTS and Referrer-Policy',
+    status: 'confirmed',
+  },
+  'the session cookie carries the protective flags': {
+    id: 'BUG-015',
+    summary: 'The JSESSIONID cookie is not marked Secure',
+    status: 'confirmed',
+  },
+  'signed-in pages are not cacheable': {
+    id: 'BUG-016',
+    summary: 'Signed-in pages send no Cache-Control header',
+    status: 'confirmed',
+  },
+  'the admin console is not reachable by an anonymous visitor': {
+    id: 'BUG-017',
+    summary: 'admin.htm shows administration content to an anonymous visitor',
+    status: 'confirmed',
+  },
+  'logging in issues a new session id (no session fixation)': {
+    id: 'BUG-018',
+    summary: 'The session id is the same before and after login (session fixation)',
+    status: 'confirmed',
+  },
+  "a customer cannot open another customer's account page by URL": {
+    id: 'BUG-019',
+    summary: "Customer A gets the Account Details page for customer B's account id",
+    status: 'to-confirm',
+  },
+  'accessibility: index.htm has no serious violations': {
+    id: 'BUG-021',
+    summary:
+      'Serious or critical WCAG 2.x A/AA violations on every page (unlabelled fields, missing alt text, link names, contrast, page language)',
+    status: 'confirmed',
+  },
+  'accessibility: register.htm has no serious violations': {
+    id: 'BUG-021',
+    summary:
+      'Serious or critical WCAG 2.x A/AA violations on every page (unlabelled fields, missing alt text, link names, contrast, page language)',
+    status: 'confirmed',
+  },
+  'accessibility: about.htm has no serious violations': {
+    id: 'BUG-021',
+    summary:
+      'Serious or critical WCAG 2.x A/AA violations on every page (unlabelled fields, missing alt text, link names, contrast, page language)',
+    status: 'confirmed',
+  },
+  'accessibility: contact.htm has no serious violations': {
+    id: 'BUG-021',
+    summary:
+      'Serious or critical WCAG 2.x A/AA violations on every page (unlabelled fields, missing alt text, link names, contrast, page language)',
+    status: 'confirmed',
+  },
+  'accessibility: signed-in pages have no serious violations': {
+    id: 'BUG-021',
+    summary:
+      'Serious or critical WCAG 2.x A/AA violations on every page (unlabelled fields, missing alt text, link names, contrast, page language)',
+    status: 'confirmed',
+  },
   'transferring from an account to itself is refused and leaves no trace': {
     id: 'BUG-006',
     summary: 'Self-transfer is accepted and recorded on the statement',

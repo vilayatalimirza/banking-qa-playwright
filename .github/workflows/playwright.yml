@@ -1,0 +1,130 @@
+name: playwright
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  schedule:
+    - cron: '30 2 * * *' # nightly, 08:00 IST
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: 'Regenerate the visual baselines on Linux and upload them as an artifact'
+        type: boolean
+        default: false
+
+# The demo site is shared and rate-limited: never run two pipelines against it at the same time.
+concurrency:
+  group: parabank-demo
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CI: 'true'
+  BASE_URL: ${{ vars.BASE_URL || 'https://parabank.parasoft.com/parabank/' }}
+
+jobs:
+  unit:
+    name: typecheck and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx tsc --noEmit
+      - run: npx playwright test -c playwright.ci.config.ts --project=chromium tests/unit
+
+  suite:
+    name: full suite (chromium)
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: run suite
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium tests/e2e tests/contract tests/api tests/hybrid tests/negative tests/resilience tests/security tests/a11y
+      - name: job summary (findings and defect register)
+        if: always()
+        run: |
+          npx tsx scripts/defect-register.ts >> "$GITHUB_STEP_SUMMARY"
+          npx tsx scripts/summarize-findings.ts >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: suite-reports
+          path: |
+            playwright-report/
+            test-results/
+            findings/observations.jsonl
+          retention-days: 14
+
+  cross-browser:
+    name: smoke (${{ matrix.project }})
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [firefox-smoke, webkit-smoke, mobile-smoke]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npx playwright test -c playwright.ci.config.ts --project=${{ matrix.project }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports-${{ matrix.project }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  visual:
+    name: visual regression
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Until Linux baselines are committed this job would always fail, so it is advisory by default.
+    continue-on-error: ${{ !inputs.update_snapshots }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: compare with baselines
+        if: ${{ !inputs.update_snapshots }}
+        run: npx playwright test -c playwright.ci.config.ts --project=visual
+      - name: regenerate baselines
+        if: ${{ inputs.update_snapshots }}
+        run: npx playwright test -c playwright.ci.config.ts --project=visual --update-snapshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-${{ inputs.update_snapshots && 'baselines' || 'report' }}
+          path: |
+            tests/visual/
+            playwright-report/
+            test-results/
+          retention-days: 14
