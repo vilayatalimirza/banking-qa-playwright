@@ -42,10 +42,16 @@ jobs:
       - run: npx playwright test -c playwright.ci.config.ts --project=chromium tests/unit
 
   suite:
-    name: full suite (chromium)
+    name: full suite (chromium, shard ${{ matrix.shard }}/2)
     needs: unit
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    env:
+      PW_BLOB: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -54,21 +60,58 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: run suite
-        run: npx playwright test -c playwright.ci.config.ts --project=chromium tests/e2e tests/contract tests/api tests/hybrid tests/negative tests/resilience tests/security tests/a11y
-      - name: job summary (findings and defect register)
-        if: always()
-        run: |
-          npx tsx scripts/defect-register.ts >> "$GITHUB_STEP_SUMMARY"
-          npx tsx scripts/summarize-findings.ts >> "$GITHUB_STEP_SUMMARY" || true
+      - name: run suite shard
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --shard=${{ matrix.shard }}/2 tests/e2e tests/contract tests/api tests/hybrid tests/negative tests/resilience tests/security tests/a11y tests/compliance
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: suite-reports
+          name: blob-${{ matrix.shard }}
           path: |
-            playwright-report/
-            test-results/
+            blob-report/
             findings/observations.jsonl
+            test-results/
+          retention-days: 14
+
+  report:
+    name: merge shards, traceability, audit evidence
+    needs: suite
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: blob-*
+          path: shards
+      - name: merge blobs into one report
+        run: |
+          mkdir -p all-blobs test-results findings
+          find shards -path '*blob-report/*.zip' -exec cp {} all-blobs/ \;
+          cat $(find shards -name observations.jsonl) > findings/observations.jsonl 2>/dev/null || true
+          PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/results.json PLAYWRIGHT_JUNIT_OUTPUT_NAME=test-results/junit.xml npx playwright merge-reports --reporter=json,junit,html all-blobs
+      - name: job summary (requirements, defects, findings)
+        run: |
+          npx tsx scripts/traceability.ts --results test-results/results.json --out test-results/traceability-full.md
+          cat test-results/traceability-full.md >> "$GITHUB_STEP_SUMMARY"
+          npx tsx scripts/defect-register.ts >> "$GITHUB_STEP_SUMMARY"
+          npx tsx scripts/summarize-findings.ts >> "$GITHUB_STEP_SUMMARY" || true
+      - name: build audit-evidence bundle
+        run: npx tsx scripts/evidence-bundle.ts --no-attachments
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audit-evidence-${{ github.run_id }}
+          path: evidence/
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: merged-html-report
+          path: playwright-report/
           retention-days: 14
 
   cross-browser:

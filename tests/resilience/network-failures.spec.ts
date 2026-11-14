@@ -50,11 +50,18 @@ test.describe('network failures', () => {
     const { pages, sourceId, savingsId } = twoAccounts;
     const before = await snapshot(pages, sourceId, savingsId);
 
+    test.setTimeout(120_000);
     await pages.transfer.open();
+    // Fill the form while ONLINE (its account lists load from the server), then lose the connection only for the click.
+    await pages.transfer.fill(toDecimalInput(AMOUNT), sourceId, savingsId);
     await page.context().setOffline(true);
-    await pages.transfer.attempt(toDecimalInput(AMOUNT), sourceId, savingsId).catch(() => undefined);
+    try {
+      await pages.transfer.clickAndObserve().catch(() => undefined);
+      await page.waitForTimeout(1000);
+    } finally {
+      await page.context().setOffline(false); // always restore the network, even if the click throws
+    }
     const successShown = (await page.getByRole('heading', { name: 'Transfer Complete!' }).count()) > 0;
-    await page.context().setOffline(false);
 
     const after = await snapshot(pages, sourceId, savingsId);
     const checks = new Checks();

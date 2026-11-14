@@ -9,7 +9,12 @@ const reporter: ReporterDescription[] = [
   ['list'],
   ['html', { open: 'never' }],
   ['junit', { outputFile: 'test-results/junit.xml' }], // read by GitLab / Jenkins / most CI dashboards
+  ['json', { outputFile: 'test-results/results.json' }], // input for the traceability matrix and the evidence bundle
+  ['./reporters/requirements-reporter.ts'], // writes test-results/traceability.md (requirement results)
 ];
+if (process.env.PW_BLOB) {
+  reporter.push(['blob', { outputDir: 'blob-report' }]); // sharded runs: each shard saves a blob, a final job merges them
+}
 if (process.env.GITHUB_ACTIONS) {
   reporter.push(['github']); // inline failure annotations on the pull request
 }

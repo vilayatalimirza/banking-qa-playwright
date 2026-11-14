@@ -7,10 +7,12 @@ interface SecondUser {
   pages: Pages;
 }
 
-export interface TwoAccounts {
+interface TwoAccounts {
   customer: Customer;
   pages: Pages;
+  /** The account every new customer starts with. */
   sourceId: string;
+  /** A SAVINGS account opened from the source account. */
   savingsId: string;
 }
 
@@ -23,7 +25,7 @@ interface Fixtures {
   anonymousPages: Pages;
   /** A second customer registered in a separate, isolated browser context. */
   secondUser: SecondUser;
-  /** A logged-in customer with their default source account plus a newly opened SAVINGS account. */
+  /** A logged-in customer who already owns two accounts (checking + savings). */
   twoAccounts: TwoAccounts;
 }
 

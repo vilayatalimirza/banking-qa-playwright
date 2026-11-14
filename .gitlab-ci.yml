@@ -38,8 +38,9 @@ suite:
   extends: .demo_lock
   stage: test
   timeout: 90 minutes
+  parallel: 2 # sharding: CI_NODE_INDEX / CI_NODE_TOTAL
   script:
-    - npx playwright test -c playwright.ci.config.ts --project=chromium tests/e2e tests/contract tests/api tests/hybrid tests/negative tests/resilience tests/security tests/a11y
+    - npx playwright test -c playwright.ci.config.ts --project=chromium --shard=$CI_NODE_INDEX/$CI_NODE_TOTAL tests/e2e tests/contract tests/api tests/hybrid tests/negative tests/resilience tests/security tests/a11y tests/compliance
   after_script:
     - npx tsx scripts/defect-register.ts || true
     - npx tsx scripts/summarize-findings.ts || true

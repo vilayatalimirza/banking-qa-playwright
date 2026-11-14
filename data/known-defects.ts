@@ -203,4 +203,14 @@ export const KNOWN_DEFECTS: Record<string, KnownDefect> = {
     summary: 'Self-transfer is accepted and recorded on the statement',
     status: 'to-confirm',
   },
+  'PSD2 SCA: a payment above the exemption limit needs a second factor': {
+    id: 'GAP-001',
+    summary: 'A $100 remote payment completes with no second factor or step-up challenge (no PSD2 SCA)',
+    status: 'confirmed',
+  },
+  'KYC: registration refuses an obviously invalid SSN': {
+    id: 'GAP-002',
+    summary: 'Registration accepts an obviously invalid SSN ("abc"): no identity data validation at onboarding',
+    status: 'confirmed',
+  },
 };

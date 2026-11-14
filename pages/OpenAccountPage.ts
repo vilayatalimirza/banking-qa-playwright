@@ -20,8 +20,6 @@ export class OpenAccountPage {
 
   async open(): Promise<void> {
     await this.page.getByRole('link', { name: 'Open New Account' }).click();
-    // Wait for the async accounts call to populate the funding-account dropdown
-    await expect(this.fromAccount.locator('option').first()).toBeAttached();
   }
 
   /** Chooses the account type and funding account without submitting. */

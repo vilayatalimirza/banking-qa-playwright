@@ -1,9 +1,19 @@
-
-# Playwright
 node_modules/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 .env
+evidence/
+
+# Personal study material and build notes: kept locally, not published
+REBUILD-GUIDE.md
+drills/
+docs/PACKAGE-*-NOTES.md
+docs/STAGE2-NOTES.md
+docs/INTERVIEW-PREP.md
+docs/HOW-IT-WORKS.md
+docs/LESSONS-LEARNED.md
+docs/BANKING-CONCEPTS.md
+docs/banking-glossary.md
+

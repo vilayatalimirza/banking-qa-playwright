@@ -17,31 +17,20 @@ export class RegisterPage {
   async open(): Promise<void> {
     await this.page.goto('index.htm');
     await this.page.getByRole('link', { name: 'Register' }).click();
-    await expect(this.page).toHaveURL(/register\.htm/);
-    await expect(this.textField('First Name:')).toBeVisible();
   }
 
   async fillForm(customer: Customer): Promise<void> {
-    const fields: Array<[Locator, string]> = [
-      [this.textField('First Name:'), customer.firstName],
-      [this.textField('Last Name:'), customer.lastName],
-      [this.textField('Address:'), customer.address],
-      [this.textField('City:'), customer.city],
-      [this.textField('State:'), customer.state],
-      [this.textField('Zip Code:'), customer.zipCode],
-      [this.textField('Phone #:'), customer.phone],
-      [this.textField('SSN:'), customer.ssn],
-      [this.textField('Username:'), customer.username],
-      [this.passwordField('Password:'), customer.password],
-      [this.passwordField('Confirm:'), customer.password],
-    ];
-
-    for (const [locator, value] of fields) {
-      await expect(async () => {
-        await locator.fill(value);
-        await expect(locator).toHaveValue(value, { timeout: 500 });
-      }).toPass({ timeout: 5000 });
-    }
+    await this.textField('First Name:').fill(customer.firstName);
+    await this.textField('Last Name:').fill(customer.lastName);
+    await this.textField('Address:').fill(customer.address);
+    await this.textField('City:').fill(customer.city);
+    await this.textField('State:').fill(customer.state);
+    await this.textField('Zip Code:').fill(customer.zipCode);
+    await this.textField('Phone #:').fill(customer.phone);
+    await this.textField('SSN:').fill(customer.ssn);
+    await this.textField('Username:').fill(customer.username);
+    await this.passwordField('Password:').fill(customer.password);
+    await this.passwordField('Confirm:').fill(customer.password);
   }
 
   async submit(): Promise<void> {

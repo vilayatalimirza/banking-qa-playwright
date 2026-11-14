@@ -245,3 +245,13 @@ Four distinct problems (axe rule ids), with elements affected per page:
 ## Caveat
 The zero-amount tests originally could not tell accept from reject (balances are unchanged either way). They now also check the statement for a zero-value row, which is how BUG-008 was found.
 Because BUG-007 tests crash at navigation rather than at an assertion, an expected-fail mark would also hide other failures in those two tests; the API probe in Package C replaces them with a precise check.
+
+## GAP-001: No strong customer authentication (PSD2 SCA) on remote payments
+**Severity:** Medium (demo system; High for a real EU bank). **Priority:** P3. **Type:** compliance gap, not a coding defect.
+**Steps:** register, call `POST billpay` for $100.00 with only the existing identity. **Actual:** the payment completes; no one-time code, push approval or other second factor is requested. **Expected:** under PSD2 a remote electronic payment above the exemption thresholds needs two of knowledge/possession/inherence (SCA), with dynamic linking of amount and payee.
+**Test:** `PSD2 SCA: a payment above the exemption limit needs a second factor` (tracked, expected to fail until a challenge exists).
+
+## GAP-002: Registration accepts an invalid SSN (no KYC data validation)
+**Severity:** Medium (demo system; High for a real bank). **Priority:** P3. **Type:** compliance gap. **Reproduced:** 1 of 1 run.
+**Steps:** open Register, fill the form with SSN `abc`, submit. **Actual:** the customer is created and logged in. **Expected:** identity fields are validated (format at minimum) before an account exists; real KYC/CDD also verifies identity against documents or a registry.
+**Test:** `KYC: registration refuses an obviously invalid SSN` (tracked, expected to fail until validation exists).
