@@ -3,7 +3,7 @@
 A banking QA automation project: Playwright + TypeScript against the public demo bank [ParaBank](https://parabank.parasoft.com/parabank/).
 It treats money rules as the thing under test (conservation of money, idempotency, reconciliation, double entry), and it **found and documented 22 real defects and gaps** in the demo, including critical ones (anonymous API transfer debits another customer, negative bill pay credits the payer, anonymous admin console).
 
-![CI](https://github.com/<your-user>/banking-qa-playwright/actions/workflows/playwright.yml/badge.svg)
+![CI](https://github.com/vilayatalimirza/banking-qa-playwright/actions/workflows/playwright.yml/badge.svg)
 
 > Replace `<your-user>` after you push. Add 2 screenshots to `docs/img/`: the HTML report and the CI job summary (requirement table).
 
