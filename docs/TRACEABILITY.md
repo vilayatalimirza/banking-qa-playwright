@@ -2,7 +2,7 @@
 
 Requirements live in `data/requirements.ts`. Regenerate with `npx tsx scripts/traceability.ts`.
 
-Generated 2026-11-15 (static listing, nothing was run). Sorted by risk score = impact x likelihood.
+Generated 2026-11-16 (static listing, nothing was run). Sorted by risk score = impact x likelihood.
 
 | Req | Requirement | Area | Risk (I x L) | Tier | Tests | Passed | Open defects | Result |
 |---|---|---|---|---|---|---|---|---|
@@ -29,8 +29,8 @@ Generated 2026-11-15 (static listing, nothing was run). Sorted by risk score = i
 | REQ-016 | Key forms keep their layout (visual regression) | Quality | 2 x 3 = 6 | Low | 6 | 0 | - | NOT RUN |
 | REQ-017 | Critical journeys work in Chromium, Firefox, WebKit and a phone viewport | Quality | 3 x 2 = 6 | Low | 5 | 0 | - | NOT RUN |
 | REQ-018 | Customer self-service: profile update, loans and transaction search | Accounts | 3 x 2 = 6 | Low | 4 | 0 | - | NOT RUN |
-| REQ-020 | The test framework itself is trustworthy (page contracts, helper and wiring self-checks) | Foundations | 2 x 2 = 4 | Low | 69 | 0 | - | NOT RUN |
+| REQ-020 | The test framework itself is trustworthy (page contracts, helper and wiring self-checks) | Foundations | 2 x 2 = 4 | Low | 71 | 0 | - | NOT RUN |
 
-Tests by tier (a test covering several requirements is counted once per requirement): Critical 88, Standard 61, Low 84.
+Tests by tier (a test covering several requirements is counted once per requirement): Critical 88, Standard 61, Low 86.
 
 Tests not mapped to any requirement: 0
