@@ -9,11 +9,12 @@ test('pass rates exclude expected defect failures and skipped tests', () => {
     { status: 'expected', expectedStatus: 'failed' },
     { status: 'skipped', expectedStatus: 'passed' },
     { status: 'unexpected', expectedStatus: 'failed' },
+    { status: 'flaky', expectedStatus: 'failed' },
   ]);
   expect(metrics).toMatchObject({
     firstAttemptPasses: 1, passedOnRetry: 1, unexpectedFailures: 1,
-    staleDefectGuards: 1, expectedDefectFailures: 1, skipped: 1,
-    denominator: 4, firstAttemptPassRate: 25, finalPassRate: 50,
+    staleDefectGuards: 2, expectedDefectFailures: 1, skipped: 1,
+    denominator: 5, firstAttemptPassRate: 20, finalPassRate: 40,
   });
 });
 

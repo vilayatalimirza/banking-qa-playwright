@@ -5,13 +5,13 @@
 ## Risk-based approach
 Each requirement (`data/requirements.ts`) is scored impact (1 to 5) x likelihood (1 to 5). Likelihood rises when behaviour is already known to be weak. Score decides the regression tier:
 
-| Tier | Score | Runs | Contains |
+| Tier | Score | Current CI treatment | Contains |
 |---|---|---|---|
-| Critical | 15 to 25 | every push and PR, all of it | payments, amounts, idempotency, authorization, SCA, KYC, reconciliation, sessions |
-| Standard | 9 to 14 | every push, nightly in all browsers | hardening, a11y, injection, ledger, money maths |
-| Low | up to 8 | nightly | visual, self-service, framework self-checks |
+| Critical | 15 to 25 | Included in the full Chromium suite on every push/PR and nightly run; critical smoke journeys also run in the other configured browser/viewports | payments, amounts, idempotency, authorization, SCA, KYC, reconciliation, sessions |
+| Standard | 9 to 14 | Included in the same full Chromium suite on every push/PR and nightly run | hardening, accessibility, injection, ledger and money maths |
+| Low | up to 8 | Included in the Chromium suite where covered by the configured paths; visual checks run in a separate advisory job | visual, self-service and framework self-checks |
 
-The regression pack is therefore not "all tests": it is the Critical tier plus `@smoke` journeys in 4 browser configurations, justified by the matrix in `docs/TRACEABILITY.md`.
+**Important implementation detail:** risk tiers currently prioritize test design and triage; they do not yet select separate CI subsets. The workflow runs the complete non-visual functional/API/security/accessibility/compliance suite in Chromium, plus a tagged `@smoke` matrix in Firefox, WebKit and Pixel 7 emulation. Visual comparison is a separate advisory job until Linux baselines are committed. See `docs/TRACEABILITY.md` for the test-to-requirement mapping.
 
 ## Test levels
 1. **Unit** (offline, seconds): money maths, parsing, helpers, guards.

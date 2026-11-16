@@ -2,7 +2,7 @@
 
 Environment: public ParaBank demo (https://parabank.parasoft.com/parabank/), exercised with Playwright UI and API tests across multiple runs. Frequencies are stated per finding where recorded; do not assume all findings were reproduced in the same run.
 Oracle: invariants (must always hold) and requirements (expected bank behaviour). Requirements assume a standard retail account with no overdraft product.
-Open defects are tracked in `data/known-defects.ts`; each test is marked "expected to fail" until fixed.
+Thirty-six test titles are registered in `data/known-defects.ts` as expected-failure guards. Documented findings without a registered guard are labelled as observations or awaiting confirmation; they are not silently treated as expected failures. BUG-011 and BUG-020 are documented but have no registered guard.
 
 | ID | Title | Severity | Priority | Status |
 |----|-------|----------|----------|--------|

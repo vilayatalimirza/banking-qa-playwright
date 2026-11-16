@@ -78,7 +78,7 @@ The metrics apply to the merged full Chromium functional suite only. Unit/typech
 
 ## CI
 
-`.github/workflows/playwright.yml` (GitHub Actions) and `.gitlab-ci.yml` (GitLab CI) run typecheck/unit, the full Chromium suite, cross-browser smoke (Firefox, WebKit, Pixel 7), and visual regression. GitHub Actions merges the Chromium shards before generating the run metrics, full traceability and audit-evidence bundle.
+`.github/workflows/playwright.yml` is the validated GitHub Actions pipeline: typecheck/unit, the full Chromium suite, cross-browser smoke (Firefox, WebKit, Pixel 7), and visual regression. GitHub Actions merges the Chromium shards before generating run metrics, full traceability and the audit-evidence bundle. A `.gitlab-ci.yml` file is included, but it has not yet been validated on a GitLab runner.
 
 The public demo is shared and rate-limited. GitHub Actions serializes the two Chromium shards, then the cross-browser smoke jobs, then visual regression; this avoids simultaneous jobs competing for demo state. A workflow-level concurrency group prevents overlapping workflows from running against the demo at once.
 

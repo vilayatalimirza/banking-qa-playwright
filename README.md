@@ -38,7 +38,7 @@ The metrics cover the merged **full Chromium suite**. Unit/typecheck, Firefox, W
 - REST API testing and UI/API hybrid flows
 - Integer-cent money utilities and financial invariants
 - axe-core accessibility checks and visual regression
-- GitHub Actions and GitLab CI
+- GitHub Actions (validated workflow); a GitLab CI configuration is included but not yet validated on a GitLab runner
 - JSON/JUnit/HTML reporting, requirement traceability and SHA-256 evidence manifests
 
 ## Architecture
@@ -86,6 +86,7 @@ More detail: [RUNBOOK.md](docs/RUNBOOK.md).
 - The committed visual baselines were captured on Windows. Linux visual comparison is currently advisory until Linux baselines are captured and reviewed.
 - This is not a real core-banking system. It does not expose a general ledger, end-of-day processing, real payment rails, sanctions screening or production identity verification.
 - A passing automated accessibility scan is not proof of WCAG conformance; manual assistive-technology testing remains necessary.
+- The GitLab CI YAML is included for portability but has not been validated with a GitLab-hosted pipeline. Published CI evidence currently comes from GitHub Actions.
 
 The findings describe observed behaviour of this demo application, not vulnerabilities in a production bank. Some findings require confirmation, and the report states the evidence limits.
 

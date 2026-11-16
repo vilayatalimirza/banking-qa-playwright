@@ -24,16 +24,16 @@ export function collectTestRecords(report: unknown): PlaywrightTestRecord[] {
 
 /**
  * Expected failures are open defect probes, not requirement passes. Keep them separate.
- * A known-defect guard that unexpectedly passes is also separate pending human triage.
+ * A known-defect guard that passes on the first attempt or after a retry is separate pending human triage.
  */
 export function summarizeRun(records: readonly PlaywrightTestRecord[]): RunMetrics {
   let firstAttemptPasses = 0, passedOnRetry = 0, unexpectedFailures = 0;
   let staleDefectGuards = 0, expectedDefectFailures = 0, skipped = 0, notRun = 0;
   for (const record of records) {
-    if (record.status === 'expected' && record.expectedStatus === 'failed') expectedDefectFailures++;
+    if (record.expectedStatus === 'failed' && record.status === 'expected') expectedDefectFailures++;
+    else if (record.expectedStatus === 'failed' && (record.status === 'unexpected' || record.status === 'flaky')) staleDefectGuards++;
     else if (record.status === 'expected') firstAttemptPasses++;
     else if (record.status === 'flaky') passedOnRetry++;
-    else if (record.status === 'unexpected' && record.expectedStatus === 'failed') staleDefectGuards++;
     else if (record.status === 'unexpected') unexpectedFailures++;
     else if (record.status === 'skipped') skipped++;
     else notRun++;
@@ -54,14 +54,14 @@ export function formatRunMetrics(m: RunMetrics): string {
     '| First-attempt passes | ' + m.firstAttemptPasses + ' |',
     '| Passed after retry (flaky) | ' + m.passedOnRetry + ' |',
     '| Unexpected test failures | ' + m.unexpectedFailures + ' |',
-    '| Known-defect guards that passed unexpectedly (triage required) | ' + m.staleDefectGuards + ' |',
+    '| Known-defect guards that passed (first try or retry; triage required) | ' + m.staleDefectGuards + ' |',
     '| Known-defect probes that failed as expected | ' + m.expectedDefectFailures + ' |',
     '| Skipped | ' + m.skipped + ' |',
     '| No recorded outcome | ' + m.notRun + ' |', '',
     '| Rate | Result |', '|---|---:|',
     '| First-attempt pass rate | ' + pct(m.firstAttemptPassRate) + ' |',
     '| Final pass rate (includes retry-passed tests) | ' + pct(m.finalPassRate) + ' |', '',
-    'The denominator includes first-attempt passes, retry-passed tests, unexpected failures and known-defect guards that passed unexpectedly.',
+    'The denominator includes first-attempt passes, retry-passed tests, unexpected failures and known-defect guards that passed unexpectedly on either attempt.',
     'Expected failures for documented defects, skipped tests and tests without a recorded outcome are excluded.',
     'A retry-passed test improves the final pass rate but remains visible as flaky.',
     'Scope: merged full Chromium shards only. Unit/typecheck, Firefox, WebKit, mobile and visual jobs are reported separately.',
