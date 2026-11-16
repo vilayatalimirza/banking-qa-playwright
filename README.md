@@ -1,11 +1,37 @@
 # banking-qa-playwright
 
 A banking QA automation project: Playwright + TypeScript against the public demo bank [ParaBank](https://parabank.parasoft.com/parabank/).
-It treats money rules as the thing under test (conservation of money, idempotency, reconciliation, double entry), and it **found and documented 22 real defects and gaps** in the demo, including critical ones (anonymous API transfer debits another customer, negative bill pay credits the payer, anonymous admin console).
+It treats money rules as the thing under test (conservation of money, idempotency, reconciliation, double entry, double deductions) and documents **21 potential defect reports and 2 compliance gaps** from testing the demo. These are test-run findings, not a claim that every issue is currently reproducible; some remain observed or need confirmation. Confirmed examples include negative bill pay crediting the payer and an unauthenticated API transfer debiting another customer's account.
 
-![CI](https://github.com/<your-user>/banking-qa-playwright/actions/workflows/playwright.yml/badge.svg)
+### Highlights
+- **21 potential defects and 2 compliance gaps** documented in [docs/BUG-REPORTS.md](docs/BUG-REPORTS.md); some findings remain unconfirmed.
+- **Money-first testing:** integer-cent maths, conservation of money, idempotency, reconciliation and double-entry checks.
+- **Risk-based regression pack:** 24 requirements scored by impact × likelihood, with a [traceability matrix](docs/TRACEABILITY.md).
+- **Audit evidence:** pipeline runs produce a hashed evidence bundle.
+- **Shared-demo resilience:** known-defect tracking, retries with traces, and a [flaky-test log](docs/FLAKY-LOG.md).
 
-> Replace `<your-user>` after you push. Add 2 screenshots to `docs/img/`: the HTML report and the CI job summary (requirement table).
+**Stack**
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=white)
+![axe-core](https://img.shields.io/badge/axe--core-7C3AED?logo=accessibility&logoColor=white)
+![npm](https://img.shields.io/badge/npm-CB3837?logo=npm&logoColor=white)
+
+**Coverage and platforms**
+
+![REST API](https://img.shields.io/badge/REST_API-tested-005571)
+![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)
+![GitLab CI](https://img.shields.io/badge/GitLab_CI-FC6D26?logo=gitlab&logoColor=white)
+![HTML Reports](https://img.shields.io/badge/HTML-Reports-E34F26?logo=html5&logoColor=white)
+
+## Reports
+
+| Test report | Requirement traceability |
+|---|---|
+| ![HTML report](docs/img/html-report.png) | ![Traceability](docs/img/traceability.png) |
+
+The images are illustrative screenshots. GitHub Actions uploads the generated HTML report and an [audit-evidence bundle](scripts/evidence-bundle.ts) as run artifacts; GitLab CI archives its reports and test results. The committed [traceability matrix](docs/TRACEABILITY.md) is a static test-to-requirement listing unless generated with run results; it does not represent the latest test outcome.
 
 ## What it demonstrates
 
@@ -57,13 +83,13 @@ npx tsc --noEmit                                   # type check
 npx playwright test -c playwright.ci.config.ts --project=chromium tests/unit      # fast, offline
 npx playwright test -c playwright.ci.config.ts --project=chromium                 # full suite against ParaBank
 npx playwright test -c playwright.ci.config.ts --project=chromium --grep @smoke   # critical journeys
-npx tsx scripts/summarize-findings.ts              # what the bank actually did
 npx tsx scripts/defect-register.ts                 # open defects table
+npx tsx scripts/summarize-findings.ts              # what the bank actually did
 npx tsx scripts/traceability.ts                    # regenerate docs/TRACEABILITY.md
 npx tsx scripts/evidence-bundle.ts                 # evidence/<run>/ after a run
 ```
 
-More in `docs/RUNBOOK.md`.
+More in [docs/RUNBOOK.md](docs/RUNBOOK.md).
 
 ## Reading the results
 
@@ -82,4 +108,8 @@ docs/       strategy, plan, traceability, defects, concepts, flaky log
 
 ## Honest limits
 
-ParaBank is a shared demo that resets and is rate-limited, so some runs show environmental flakes (see `docs/FLAKY-LOG.md`). It is not a real core banking system: there is no general ledger, EOD, interest accrual, SCA or sanctions screening to test, only what a customer can see. `docs/BANKING-CONCEPTS.md` says which concepts are tested and which are only discussed.
+ParaBank is a shared demo that resets and is rate-limited, so some runs show environmental flakes (see `docs/FLAKY-LOG.md`). It is not a real core banking system: there is no general ledger, EOD, interest accrual, SCA or sanctions screening to test, only what a customer can see.
+
+## About the author
+QA engineer (3 years, Selenium/Java moving to Playwright/TypeScript), focusing on banking and fintech testing.
+[LinkedIn](https://www.linkedin.com/in/vilayat-ali-mirza)
