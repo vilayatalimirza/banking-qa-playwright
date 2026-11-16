@@ -27,7 +27,7 @@ The regression pack is therefore not "all tests": it is the Critical tier plus `
 - **Observations**: what the system actually did (`findings/observations.jsonl`), kept so a failure can be diagnosed without re-running.
 
 ## Defect handling
-Open defect = test tagged expected-to-fail with ID, written report, severity. Fix = test turns red by design, then the marker is removed. 38 tracked tests cover 20 IDs (19 defects plus the compliance gap GAP-001).
+A tracked finding is an expected-failure test with an ID and a written report. When behaviour changes, the guard becomes an unexpected pass and must be re-triaged before its marker is removed. The current registry contains 36 test titles across 21 identifiers: 19 BUG IDs and two compliance gaps (GAP-001 and GAP-002). BUG-006 and BUG-019 remain marked to-confirm. BUG-011 and BUG-020 are documented findings but are not currently registered as expected-failure guards.
 
 ## Data and environment
 Every test registers its own customer (unique username), so tests are independent and parallel-safe. No real data. The demo is shared: one pipeline at a time (concurrency lock), 1 worker in CI, retries 2 with trace on first retry; a pass-on-retry is reported FLAKY, never hidden.

@@ -50,6 +50,7 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2]
+      max-parallel: 1 # The public demo is shared; do not run two shards against it together.
     env:
       PW_BLOB: '1'
     steps:
@@ -95,6 +96,8 @@ jobs:
           find shards -path '*blob-report/*.zip' -exec cp {} all-blobs/ \;
           cat $(find shards -name observations.jsonl) > findings/observations.jsonl 2>/dev/null || true
           PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/results.json PLAYWRIGHT_JUNIT_OUTPUT_NAME=test-results/junit.xml npx playwright merge-reports --reporter=json,junit,html all-blobs
+      - name: run metrics (first attempt and final outcomes)
+        run: npx tsx scripts/run-metrics.ts test-results/results.json | tee -a "$GITHUB_STEP_SUMMARY"
       - name: job summary (requirements, defects, findings)
         run: |
           npx tsx scripts/traceability.ts --results test-results/results.json --out test-results/traceability-full.md
@@ -110,11 +113,15 @@ jobs:
           retention-days: 90
       - uses: actions/upload-artifact@v4
         with:
-          name: merged-html-report
-          path: playwright-report/
+          name: merged-test-report
+          path: |
+            playwright-report/
+            test-results/run-metrics.md
+            test-results/traceability-full.md
           retention-days: 14
 
   cross-browser:
+    needs: [suite] # Run after the full suite; all jobs share one rate-limited demo.
     name: smoke (${{ matrix.project }})
     needs: unit
     runs-on: ubuntu-latest
@@ -123,6 +130,7 @@ jobs:
       fail-fast: false
       matrix:
         project: [firefox-smoke, webkit-smoke, mobile-smoke]
+      max-parallel: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -142,6 +150,7 @@ jobs:
           retention-days: 14
 
   visual:
+    needs: [cross-browser] # Do not compete with the other browser jobs for shared demo state.
     name: visual regression
     needs: unit
     runs-on: ubuntu-latest
