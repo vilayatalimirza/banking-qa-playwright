@@ -1,6 +1,6 @@
 # Bug reports: ParaBank (Stage 5 findings)
 
-Environment: https://parabank.parasoft.com/parabank/ , Chromium via Playwright, one run of the Package B suite (frequency 1 of 1 unless stated).
+Environment: public ParaBank demo (https://parabank.parasoft.com/parabank/), exercised with Playwright UI and API tests across multiple runs. Frequencies are stated per finding where recorded; do not assume all findings were reproduced in the same run.
 Oracle: invariants (must always hold) and requirements (expected bank behaviour). Requirements assume a standard retail account with no overdraft product.
 Open defects are tracked in `data/known-defects.ts`; each test is marked "expected to fail" until fixed.
 
@@ -16,7 +16,7 @@ Open defects are tracked in `data/known-defects.ts`; each test is marked "expect
 | BUG-008 | Zero-value transfer is accepted and recorded | Low | P3 | Confirmed |
 | BUG-009 | Unauthenticated API call moves money out of another customer's account | Critical | P1 | Confirmed |
 | BUG-010 | Account details readable without authentication | High | P1 | Confirmed |
-| BUG-011 | Login API takes username and password in the URL path | Medium | P2 | Confirmed (observed in use) |
+| BUG-011 | REST API login places credentials in URL path | Medium | P2 | Observed in API use; browser form is separate |
 | BUG-012 | No brute-force protection on login | High | P2 | Confirmed |
 | BUG-013 | One-character password accepted at registration | Medium | P2 | Confirmed |
 | BUG-014 | Missing security headers (clickjacking, CSP, HSTS, Referrer-Policy) | Medium | P3 | Confirmed |
@@ -133,12 +133,13 @@ Open defects are tracked in `data/known-defects.ts`; each test is marked "expect
 **Impact:** balance disclosure for any account id; makes BUG-009 easy to exploit.
 **Test:** `another customer's account data is not readable anonymously`.
 
-## BUG-011: Login API takes credentials in the URL path
-**Severity:** Medium. **Priority:** P2. **Frequency:** every use.
-**Actual:** the working login call is `GET services/bank/login/{username}/{password}`.
-**Impact:** credentials end up in server logs, proxy logs and browser history; GET requests can be cached or replayed.
-**Expected:** credentials in a POST body (or a token flow), never in the URL.
-**Evidence:** every API test logs in this way successfully. There is no dedicated test; add one in Package D if you want it tracked.
+## BUG-011: REST API login places credentials in the URL path
+**Severity:** Medium. **Priority:** P2. **Frequency:** every API login.
+**Actual:** the REST API login route used by this project is `GET services/bank/login/{username}/{password}`. The API client calls that route in `api/ParaBankApi.ts`.
+**Risk:** credentials placed in a URL can be copied into application, proxy and edge logs, monitoring systems, and other URL-based telemetry. GET requests are also more likely to be cached or replayed than a credential-bearing POST body.
+**Expected:** credentials should be submitted in a POST body or handled through a token-based authentication flow; they should not appear in the URL.
+**Scope distinction:** this finding is about the REST API route only. The browser login form is a separate flow: `tests/security/login-transport.spec.ts` verifies that `login.htm` submits credentials by POST and does not put the password in that form request URL. That browser-form result does not clear the REST API issue.
+**Evidence limitation:** the API fixtures use the GET route during test setup, but there is not yet a dedicated transport-security test for the REST endpoint. Treat this as an observed API design risk, not as a separately verified regression guard.
 
 ## BUG-012: No brute-force protection on login
 **Severity:** High. **Priority:** P2. **Frequency:** 1 of 1.
@@ -233,7 +234,7 @@ Four distinct problems (axe rule ids), with elements affected per page:
 - Accessibility: the login form can be completed with the keyboard alone.
 - Visual: the 6 layout baselines (login, registration, transfer, bill pay, open account, overview) compare identically on a second run, so the masks hide everything dynamic.
 - Cross-browser: the 5 smoke journeys (auth, overview, open account, transfer, bill pay) pass in Firefox, WebKit and a Pixel 7 viewport.
-- Security: login credentials travel in a POST body and never appear in a URL; logout kills the session on the server; a stolen session cookie replayed after logout is dead; the Back button after logout shows no account data; protected pages never show the signed-in UI to an anonymous visitor.
+- Browser-form security: the login.htm form submits credentials by POST and keeps the password out of its request URL. This is separate from BUG-011, which concerns the REST API login route. Logout kills the session on the server; a stolen session cookie replayed after logout is dead; the Back button after logout shows no account data; protected pages never show the signed-in UI to an anonymous visitor.
 - API: a wrong password is refused; account and login responses match the expected shape; API and UI always agree on balances and statements.
 - API: a transfer to or from a non-existent account is refused and no money is destroyed; a missing amount is refused.
 - Resilience: a cut connection, offline mode and a server 500 each leave balances untouched and the UI shows no false success; a slow server (3 s) still applies a single click exactly once.
