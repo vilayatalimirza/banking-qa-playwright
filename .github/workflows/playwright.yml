@@ -122,6 +122,7 @@ jobs:
 
   cross-browser:
     needs: [suite] # Run after the full suite; all jobs share one rate-limited demo.
+    if: always() # Still collect independent browser smoke evidence when the Chromium suite has failures.
     name: smoke (${{ matrix.project }})
     needs: unit
     runs-on: ubuntu-latest
@@ -151,6 +152,7 @@ jobs:
 
   visual:
     needs: [cross-browser] # Do not compete with the other browser jobs for shared demo state.
+    if: always() # Keep visual evidence available even when a browser smoke project fails.
     name: visual regression
     needs: unit
     runs-on: ubuntu-latest
