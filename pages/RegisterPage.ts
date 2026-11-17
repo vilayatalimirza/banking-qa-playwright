@@ -10,7 +10,7 @@ export class RegisterPage {
       throw new Error(`ParaBank home page returned HTTP ${response.status()} while opening registration`);
     }
 
-    const registerLink = this.page.getByRole('link', { name: 'Register' });
+    const registerLink = this.page.locator('#loginPanel').getByRole('link', { name: 'Register' });
     try {
       await registerLink.waitFor({ state: 'visible', timeout: 5000 });
     } catch {
@@ -19,60 +19,53 @@ export class RegisterPage {
       throw new Error(`ParaBank Register link was unavailable after loading index.htm. Page text: ${detail}`);
     }
     await registerLink.click();
+    await expect(this.page.locator('#rightPanel')).toContainText('Signing up is easy!');
   }
 
-  /** Finds a registration row by its exact label inside the registration panel. */
-  private registrationRow(label: string): Locator {
-    const panel = this.page.locator('#rightPanel');
-    return panel.getByRole('row').filter({ hasText: label });
+  /** Selects a registration control by its stable form name, never by an ancestor row. */
+  private registrationField(name: string): Locator {
+    return this.page.locator(`#rightPanel input[name="${name}"]`);
+  }
+
+  private async fillAndVerify(name: string, value: string): Promise<void> {
+    const field = this.registrationField(name);
+
+    await expect(field, `Registration field "${name}" should exist exactly once`).toHaveCount(1);
+    await expect(field, `Registration field "${name}" should be visible`).toBeVisible();
+    await expect(field, `Registration field "${name}" should be editable`).toBeEditable();
+
+    // Verify focus lands on the intended registration input before entering data.
+    await field.click();
+    await expect
+      .poll(() => field.evaluate((element) => document.activeElement === element))
+      .toBe(true);
+
+    await field.fill(value);
+    await expect(field, `Registration field "${name}" should retain its value`).toHaveValue(value);
   }
 
   async fillForm(customer: Customer): Promise<void> {
-    const panel = this.page.locator('#rightPanel');
-    await expect(panel).toContainText('Signing up is easy!');
-
     const fields: Array<[string, string]> = [
-      ['First Name:', customer.firstName],
-      ['Last Name:', customer.lastName],
-      ['Address:', customer.address],
-      ['City:', customer.city],
-      ['State:', customer.state],
-      ['Zip Code:', customer.zipCode],
-      ['Phone #:', customer.phone],
-      ['SSN:', customer.ssn],
-      ['Username:', customer.username],
+      ['customer.firstName', customer.firstName],
+      ['customer.lastName', customer.lastName],
+      ['customer.address.street', customer.address],
+      ['customer.address.city', customer.city],
+      ['customer.address.state', customer.state],
+      ['customer.address.zipCode', customer.zipCode],
+      ['customer.phoneNumber', customer.phone],
+      ['customer.ssn', customer.ssn],
+      ['customer.username', customer.username],
+      ['customer.password', customer.password],
+      ['repeatedPassword', customer.password],
     ];
 
-    for (const [label, value] of fields) {
-      const row = this.registrationRow(label);
-      await expect(row, `Registration row "${label}" should exist exactly once`).toHaveCount(1);
-      await expect(row.getByRole('cell').first()).toHaveText(label);
-
-      const field = row.getByRole('textbox');
-      await expect(field, `Registration field "${label}" should exist exactly once`).toHaveCount(1);
-      await expect(field, `Registration field "${label}" should be visible`).toBeVisible();
-      await field.fill(value);
-      await expect(field, `Registration field "${label}" should retain its value`).toHaveValue(value);
+    for (const [name, value] of fields) {
+      await this.fillAndVerify(name, value);
     }
-
-    const passwordRow = this.registrationRow('Password:');
-    const confirmRow = this.registrationRow('Confirm:');
-    await expect(passwordRow).toHaveCount(1);
-    await expect(confirmRow).toHaveCount(1);
-
-    const password = passwordRow.locator('input[type="password"]');
-    const confirmation = confirmRow.locator('input[type="password"]');
-    await expect(password).toHaveCount(1);
-    await expect(confirmation).toHaveCount(1);
-
-    await password.fill(customer.password);
-    await expect(password).toHaveValue(customer.password);
-    await confirmation.fill(customer.password);
-    await expect(confirmation).toHaveValue(customer.password);
   }
 
   async submit(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Register', exact: true }).click();
+    await this.page.locator('#rightPanel').getByRole('button', { name: 'Register', exact: true }).click();
   }
 
   /** Happy path: register and end up logged in. Waits for the welcome heading so callers never race. */
