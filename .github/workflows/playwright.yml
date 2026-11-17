@@ -3,17 +3,6 @@ name: playwright
 on:
   push:
     branches: [main, master]
-  pull_request:
-    paths-ignore:
-      # API-only changes are validated by api-module.yml; avoid also running every live-demo module.
-      - 'tests/api/**'
-      - 'fixtures/api.ts'
-      - 'api/ParaBankApi.ts'
-      - 'pages/RegisterPage.ts'
-      - '.github/workflows/playwright.yml'
-      - '.github/workflows/api-module.yml'
-      - 'tests/e2e/**'
-      - '.github/workflows/e2e-module.yml'
   schedule:
     - cron: '30 2 * * *' # nightly, 08:00 IST
   workflow_dispatch:

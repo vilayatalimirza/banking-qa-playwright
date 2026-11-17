@@ -1,13 +1,6 @@
 name: API module
 
 on:
-  pull_request:
-    paths:
-      - 'tests/api/**'
-      - 'fixtures/api.ts'
-      - 'fixtures/index.ts'
-      - 'api/**'
-      - '.github/workflows/api-module.yml'
   workflow_dispatch:
 
 permissions:
