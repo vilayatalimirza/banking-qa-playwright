@@ -1,137 +1,107 @@
-import { expect, test } from '@playwright/test';
-import { buildCustomer } from '../../data/factories';
-import { RegisterPage } from '../../pages/RegisterPage';
+import { expect, test as base } from '../../fixtures';
 
-test('diagnostic: capture registration field events during the fixture flow', async ({ page }, testInfo) => {
-  const customer = buildCustomer();
-  const register = new RegisterPage(page);
+interface RegistrationEvent {
+  type: string;
+  targetName: string;
+  targetId: string;
+  targetValue: string;
+  targetArea: string;
+  activeName: string;
+  activeId: string;
+  activeValue: string;
+  url: string;
+  timestamp: number;
+}
 
-  // Match the shared customer fixture, but pause after navigation to install event listeners.
-  await register.open();
+const STORAGE_KEY = '__pw_registration_fixture_events__';
 
-  await page.evaluate(() => {
-    type CapturedEvent = {
-      type: string;
-      targetName: string;
-      targetValue: string;
-      targetArea: string;
-      activeName: string;
-      activeValue: string;
-      url: string;
-    };
+// This override installs instrumentation before the inherited customer fixture uses page.goto().
+const test = base.extend({
+  page: async ({ page }, use) => {
+    await page.addInitScript(() => {
+      const key = '__pw_registration_fixture_events__';
 
-    const diagnosticWindow = window as Window & {
-      __registrationEvents?: CapturedEvent[];
-    };
-    const captured: CapturedEvent[] = [];
-    diagnosticWindow.__registrationEvents = captured;
+      if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
 
-    for (const eventType of ['focus', 'blur', 'input', 'change'] as const) {
-      document.addEventListener(
-        eventType,
-        (event: Event) => {
-          const target = event.target;
-          if (!(target instanceof HTMLInputElement)) return;
+      const record = (event: Event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
 
+        try {
+          const events = JSON.parse(sessionStorage.getItem(key) ?? '[]') as RegistrationEvent[];
           const active = document.activeElement;
           const activeInput = active instanceof HTMLInputElement ? active : null;
-          captured.push({
-            type: eventType,
+
+          events.push({
+            type: event.type,
             targetName: target.name,
+            targetId: target.id,
             targetValue: target.value,
             targetArea: target.closest('#loginPanel') ? 'loginPanel' :
               target.closest('#rightPanel') ? 'rightPanel' : 'other',
             activeName: activeInput?.name ?? '',
+            activeId: activeInput?.id ?? '',
             activeValue: activeInput?.value ?? '',
             url: location.href,
+            timestamp: Date.now(),
           });
-        },
-        true,
-      );
-    }
-  });
 
-  let fillFailure: string | null = null;
-  try {
-    await register.fillForm(customer);
-  } catch (error) {
-    fillFailure = error instanceof Error ? error.stack ?? error.message : String(error);
-  }
+          sessionStorage.setItem(key, JSON.stringify(events));
+        } catch {
+          // Keep diagnostics from changing or breaking the application under test.
+        }
+      };
 
-  const afterFill = await page.evaluate(() => {
-    type CapturedEvent = {
-      type: string;
-      targetName: string;
-      targetValue: string;
-      targetArea: string;
-      activeName: string;
-      activeValue: string;
-      url: string;
-    };
-    const diagnosticWindow = window as Window & {
-      __registrationEvents?: CapturedEvent[];
-    };
-    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input'));
+      for (const eventType of ['focus', 'blur', 'input', 'change'] as const) {
+        document.addEventListener(eventType, record, true);
+      }
+    });
 
-    return {
-      url: location.href,
-      inputs: inputs.map((input) => ({
-        name: input.name,
-        value: input.value,
-        area: input.closest('#loginPanel') ? 'loginPanel' :
-          input.closest('#rightPanel') ? 'rightPanel' : 'other',
-        focused: input === document.activeElement,
-      })),
-      activeElement: document.activeElement instanceof HTMLInputElement
-        ? {
-            name: document.activeElement.name,
-            value: document.activeElement.value,
-            area: document.activeElement.closest('#loginPanel') ? 'loginPanel' :
-              document.activeElement.closest('#rightPanel') ? 'rightPanel' : 'other',
-          }
-        : {
-            tagName: document.activeElement?.tagName ?? '',
-            id: (document.activeElement as HTMLElement | null)?.id ?? '',
-          },
-      events: diagnosticWindow.__registrationEvents ?? [],
-    };
-  });
+    await use(page);
+  },
+});
 
-  let submitFailure: string | null = null;
-  if (!fillFailure) {
+test('diagnostic: capture the actual shared customer fixture registration', async ({ page, customer }, testInfo) => {
+  const events = await page.evaluate((key) => {
     try {
-      await register.submit();
-      await expect(
-        page.getByRole('heading', { name: `Welcome ${customer.username}`, exact: true }),
-      ).toBeVisible();
-    } catch (error) {
-      submitFailure = error instanceof Error ? error.stack ?? error.message : String(error);
+      return JSON.parse(sessionStorage.getItem(key) ?? '[]') as RegistrationEvent[];
+    } catch {
+      return [];
     }
-  }
-
-  const afterSubmit = await page.evaluate(() => ({
-    url: location.href,
-    title: document.title,
-    bodyText: document.body.innerText.replace(/\\s+/g, ' ').slice(0, 700),
-    inputs: Array.from(document.querySelectorAll<HTMLInputElement>('input')).map((input) => ({
-      name: input.name,
-      value: input.value,
-    })),
-  }));
+  }, STORAGE_KEY);
 
   const evidence = {
-    customer: { ...customer, password: '[redacted]' },
-    fillFailure,
-    afterFill,
-    submitFailure,
-    afterSubmit,
+    customer: {
+      firstName: customer.firstName,
+      username: customer.username,
+      password: '[redacted]',
+    },
+    finalUrl: page.url(),
+    welcomeHeading: await page.getByRole('heading', {
+      name: `Welcome ${customer.username}`,
+      exact: true,
+    }).isVisible().catch(() => false),
+    eventCount: events.length,
+    registrationFirstNameEvents: events.filter((event) =>
+      event.targetName === 'customer.firstName' || event.targetId === 'customer.firstName'
+    ),
+    loginUsernameEvents: events.filter((event) =>
+      event.targetName === 'username' && event.targetArea === 'loginPanel'
+    ),
+    allEvents: events,
   };
 
-  await testInfo.attach('complete-registration-diagnostic.json', {
+  await testInfo.attach('shared-customer-fixture-events.json', {
     body: Buffer.from(JSON.stringify(evidence, null, 2)),
     contentType: 'application/json',
   });
 
-  expect(fillFailure, 'all registration fields should retain their values during fillForm').toBeNull();
-  expect(submitFailure, 'registration should complete and show the welcome heading').toBeNull();
+  expect(evidence.welcomeHeading, 'the shared customer fixture should finish on the logged-in account page')
+    .toBe(true);
+  expect(
+    evidence.registrationFirstNameEvents.some((event) =>
+      event.type === 'input' && event.targetValue === customer.firstName
+    ),
+    'the shared fixture should type the first name into the registration first-name field',
+  ).toBe(true);
 });
