@@ -10,7 +10,7 @@ interface ApiSession {
 interface ApiFixtures {
   /** An API client with NO session cookie (the Playwright `request` context is separate from the browser). */
   api: ParaBankApi;
-  /** The UI-registered customer, looked up through the API. Registration is the hybrid step: UI creates, API drives. */
+  /** The UI-registered customer, mapped to the API through its first visible account (no second API login). */
   session: ApiSession;
 }
 
@@ -19,13 +19,22 @@ export const test = tracked.extend<ApiFixtures>({
     await use(new ParaBankApi(request));
   },
 
-  session: async ({ api, customer }, use) => {
-    const customerId = await api.customerIdFor(customer.username, customer.password);
-    const accounts = await api.accountsOf(customerId);
-    const first = accounts[0];
+  session: async ({ api, pages }, use) => {
+    // Registration leaves the browser logged in. Read the source account from the UI,
+    // then resolve its owner through the account API instead of making another API login.
+    await pages.overview.open();
+    const overview = await pages.overview.read();
+    const first = overview.accounts[0];
     if (!first) {
-      throw new Error(`Customer ${customerId} has no accounts through the API`);
+      throw new Error('The newly registered customer has no visible checking account');
     }
+
+    const account = await api.account(first.id);
+    const customerId = Number(account.customerId);
+    if (!Number.isSafeInteger(customerId) || customerId <= 0) {
+      throw new Error(`Account ${first.id} returned an invalid customer id: ${account.customerId}`);
+    }
+
     await use({ customerId, sourceId: first.id });
   },
 });

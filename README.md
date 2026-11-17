@@ -81,7 +81,7 @@ More detail: [RUNBOOK.md](docs/RUNBOOK.md).
 
 ## Important limitations
 
-- ParaBank is a shared public demo. It can reset, slow down or rate-limit requests. CI serializes demo-facing jobs and uses one worker per Chromium shard; retries are reported, not hidden.
+- ParaBank is a shared public demo. It can reset, slow down or rate-limit requests. CI serializes demo-facing jobs and uses one worker per Chromium shard; preflight rejects HTTP errors and challenge pages before the suite starts. Retries are reported, not hidden.
 - The complete automated regression suite runs in Chromium. Firefox, WebKit and Pixel 7 run the tagged critical smoke journeys only.
 - The committed visual baselines were captured on Windows. Linux visual comparison is currently advisory until Linux baselines are captured and reviewed.
 - This is not a real core-banking system. It does not expose a general ledger, end-of-day processing, real payment rails, sanctions screening or production identity verification.
