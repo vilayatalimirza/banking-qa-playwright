@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import type { Customer } from '../data/factories';
 
 export class RegisterPage {
@@ -15,40 +15,60 @@ export class RegisterPage {
       await registerLink.waitFor({ state: 'visible', timeout: 5000 });
     } catch {
       const bodyText = await this.page.locator('body').innerText().catch(() => '');
-      const detail = bodyText.replace(/\s+/g, ' ').slice(0, 180) || 'page body was empty';
+      const detail = bodyText.replace(/\\s+/g, ' ').slice(0, 180) || 'page body was empty';
       throw new Error(`ParaBank Register link was unavailable after loading index.htm. Page text: ${detail}`);
     }
     await registerLink.click();
   }
 
+  /** Finds a registration row by its exact label inside the registration panel. */
+  private registrationRow(label: string): Locator {
+    const panel = this.page.locator('#rightPanel');
+    return panel.getByRole('row').filter({ hasText: label });
+  }
+
   async fillForm(customer: Customer): Promise<void> {
-    // Use ParaBank's stable field IDs instead of filtering table rows by label text.
-    // Verify each non-password field immediately so a missed fill is caught before submission.
+    const panel = this.page.locator('#rightPanel');
+    await expect(panel).toContainText('Signing up is easy!');
+
     const fields: Array<[string, string]> = [
-      ['customer.firstName', customer.firstName],
-      ['customer.lastName', customer.lastName],
-      ['customer.address.street', customer.address],
-      ['customer.address.city', customer.city],
-      ['customer.address.state', customer.state],
-      ['customer.address.zipCode', customer.zipCode],
-      ['customer.phoneNumber', customer.phone],
-      ['customer.ssn', customer.ssn],
-      ['customer.username', customer.username],
+      ['First Name:', customer.firstName],
+      ['Last Name:', customer.lastName],
+      ['Address:', customer.address],
+      ['City:', customer.city],
+      ['State:', customer.state],
+      ['Zip Code:', customer.zipCode],
+      ['Phone #:', customer.phone],
+      ['SSN:', customer.ssn],
+      ['Username:', customer.username],
     ];
 
-    for (const [id, value] of fields) {
-      const field = this.page.locator(`input[id="${id}"]`);
-      await expect(field, `Registration field ${id} should exist exactly once`).toHaveCount(1);
+    for (const [label, value] of fields) {
+      const row = this.registrationRow(label);
+      await expect(row, `Registration row "${label}" should exist exactly once`).toHaveCount(1);
+      await expect(row.getByRole('cell').first()).toHaveText(label);
+
+      const field = row.getByRole('textbox');
+      await expect(field, `Registration field "${label}" should exist exactly once`).toHaveCount(1);
+      await expect(field, `Registration field "${label}" should be visible`).toBeVisible();
       await field.fill(value);
-      await expect(field, `Registration field ${id} should retain its value`).toHaveValue(value);
+      await expect(field, `Registration field "${label}" should retain its value`).toHaveValue(value);
     }
 
-    const password = this.page.locator('input[id="customer.password"]');
-    const confirmation = this.page.locator('input[id="repeatedPassword"]');
+    const passwordRow = this.registrationRow('Password:');
+    const confirmRow = this.registrationRow('Confirm:');
+    await expect(passwordRow).toHaveCount(1);
+    await expect(confirmRow).toHaveCount(1);
+
+    const password = passwordRow.locator('input[type="password"]');
+    const confirmation = confirmRow.locator('input[type="password"]');
     await expect(password).toHaveCount(1);
     await expect(confirmation).toHaveCount(1);
+
     await password.fill(customer.password);
+    await expect(password).toHaveValue(customer.password);
     await confirmation.fill(customer.password);
+    await expect(confirmation).toHaveValue(customer.password);
   }
 
   async submit(): Promise<void> {
