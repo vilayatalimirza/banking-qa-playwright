@@ -1,0 +1,49 @@
+name: API module
+
+on:
+  pull_request:
+    paths:
+      - 'tests/api/**'
+      - 'fixtures/api.ts'
+      - 'fixtures/index.ts'
+      - 'api/**'
+      - 'pages/RegisterPage.ts'
+      - '.github/workflows/api-module.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-module-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  api:
+    name: API module (Chromium, sequential)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: TypeScript compile
+        run: npx tsc --noEmit
+      - name: Unit tests
+        run: npm test -- --run
+      - name: API tests
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/api
+      - name: Upload API evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-module-results
+          path: |
+            test-results/
+            findings/
+          if-no-files-found: ignore
+          retention-days: 14
