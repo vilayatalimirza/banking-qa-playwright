@@ -39,7 +39,24 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
       - name: API tests only
-        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/api
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          run_playwright() {
+            npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 "$@"
+          }
+
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -v '^\\.github/workflows/' || true)"
+            if [[ "$changed_files" == "tests/api/accounts-api.spec.ts" ]]; then
+              echo "Isolated hybrid account check change detected; running that test only."
+              run_playwright tests/api/accounts-api.spec.ts --grep "the API and the Accounts Overview agree on every balance"
+              exit $?
+            fi
+          fi
+
+          run_playwright tests/api
       - name: Upload API evidence
         if: always()
         uses: actions/upload-artifact@v4

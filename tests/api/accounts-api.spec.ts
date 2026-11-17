@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures/api';
 import { accountById } from '../../pages/OverviewPage';
 import { shapeProblems } from '../../utils/shape';
 
-// API contract + UI/API agreement. The customer is registered through the UI (the only way ParaBank offers).
+// API contract + UI/API agreement. The browser customer is registered through the UI.
 
 test('API login returns the customer that was registered in the UI', { tag: ['@api'] }, async ({ api, customer }) => {
   const result = await api.login(customer.username, customer.password);
@@ -24,13 +24,20 @@ test('account response has the documented shape', { tag: ['@api'] }, async ({ ap
   ).toEqual([]);
 });
 
-test('the API and the Accounts Overview agree on every balance', { tag: ['@api', '@hybrid'] }, async ({ api, session, pages }) => {
-  const apiAccounts = await api.accountsOf(session.customerId);
-  await pages.overview.open();
-  const ui = await pages.overview.read(apiAccounts.length);
+test(
+  'the API and the Accounts Overview agree on every balance',
+  { tag: ['@api', '@hybrid'] },
+  async ({ api, customer, pages }) => {
+    // Resolve the ID for the same customer the browser fixture already registered and logged in.
+    const customerId = await api.customerIdFor(customer.username, customer.password);
+    const apiAccounts = await api.accountsOf(customerId);
 
-  expect(ui.accounts.map((a) => a.id).sort()).toEqual(apiAccounts.map((a) => a.id).sort());
-  for (const account of apiAccounts) {
-    expect(accountById(ui, account.id).balanceCents, `balance of ${account.id}`).toBe(account.balanceCents);
-  }
-});
+    await pages.overview.open();
+    const ui = await pages.overview.read(apiAccounts.length);
+
+    expect(ui.accounts.map((a) => a.id).sort()).toEqual(apiAccounts.map((a) => a.id).sort());
+    for (const account of apiAccounts) {
+      expect(accountById(ui, account.id).balanceCents, `balance of ${account.id}`).toBe(account.balanceCents);
+    }
+  },
+);
