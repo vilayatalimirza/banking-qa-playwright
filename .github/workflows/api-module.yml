@@ -14,8 +14,9 @@ on:
 permissions:
   contents: read
 
+# Share the same lock as the full suite so no workflow overlaps on the public demo.
 concurrency:
-  group: api-module-${{ github.event.pull_request.number || github.ref }}
+  group: parabank-demo
   cancel-in-progress: false
 
 jobs:
