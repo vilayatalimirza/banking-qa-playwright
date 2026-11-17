@@ -42,15 +42,34 @@ jobs:
       - run: npx playwright test -c playwright.ci.config.ts --project=chromium tests/unit
 
   suite:
-    name: full suite (chromium, shard ${{ matrix.shard }}/2)
+    name: full suite (Chromium, \${{ matrix.module }})
     needs: unit
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
       fail-fast: false
+      # Each test module gets its own job, but only one module may use the shared demo at a time.
+      max-parallel: 1
       matrix:
-        shard: [1, 2]
-      max-parallel: 1 # The public demo is shared; do not run two shards against it together.
+        include:
+          - module: e2e
+            test_path: tests/e2e
+          - module: contract
+            test_path: tests/contract
+          - module: api
+            test_path: tests/api
+          - module: hybrid
+            test_path: tests/hybrid
+          - module: negative
+            test_path: tests/negative
+          - module: resilience
+            test_path: tests/resilience
+          - module: security
+            test_path: tests/security
+          - module: accessibility
+            test_path: tests/a11y
+          - module: compliance
+            test_path: tests/compliance
     env:
       PW_BLOB: '1'
     steps:
@@ -61,18 +80,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: run suite shard
-        run: npx playwright test -c playwright.ci.config.ts --project=chromium --shard=${{ matrix.shard }}/2 tests/e2e tests/contract tests/api tests/hybrid tests/negative tests/resilience tests/security tests/a11y tests/compliance
+      - name: run module sequentially
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 "\${{ matrix.test_path }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: blob-${{ matrix.shard }}
+          name: blob-\${{ matrix.module }}
           path: |
             blob-report/
             findings/observations.jsonl
             test-results/
           retention-days: 14
-
   report:
     name: merge shards, traceability, audit evidence
     needs: suite
