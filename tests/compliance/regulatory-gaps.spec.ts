@@ -56,9 +56,9 @@ test(
       .isVisible();
     const bodyText = await page.locator('body').innerText();
     const validationFeedback = bodyText
-      .split(/\\r?\\n/)
+      .split(/\r?\n/)
       .map((line) => line.trim())
-      .filter((line) => /\\b(error|invalid|required|must be|please enter|cannot)\\b/i.test(line))
+      .filter((line) => /\b(error|invalid|required|must be|please enter|cannot)\b/i.test(line))
       .slice(0, 3);
     const rejected = !welcomed && registrationFormVisible && validationFeedback.length > 0;
 

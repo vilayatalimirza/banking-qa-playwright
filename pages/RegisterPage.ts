@@ -25,7 +25,7 @@ export class RegisterPage {
       await registerLink.waitFor({ state: 'visible', timeout: 5000 });
     } catch {
       const bodyText = await this.page.locator('body').innerText().catch(() => '');
-      const detail = bodyText.replace(/\\s+/g, ' ').slice(0, 180) || 'page body was empty';
+      const detail = bodyText.replace(/\s+/g, ' ').slice(0, 180) || 'page body was empty';
       throw new Error(`ParaBank Register link was unavailable after loading index.htm. Page text: ${detail}`);
     }
     await registerLink.click();
