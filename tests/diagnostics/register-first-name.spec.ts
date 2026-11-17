@@ -71,7 +71,7 @@ test('diagnostic: capture where the registration first-name fill goes', async ({
             : null,
           elementAtCenter: centerHit?.outerHTML ?? null,
         };
-      });
+      };
 
       const active = document.activeElement;
       return {
