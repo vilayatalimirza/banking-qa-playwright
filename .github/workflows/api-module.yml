@@ -1,21 +1,28 @@
-name: API module
+name: API transfer edge-case repro
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/api-module.yml'
+      - 'tests/api/transfer-api.spec.ts'
+      - 'fixtures/index.ts'
+      - 'fixtures/api.ts'
+      - 'pages/RegisterPage.ts'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Share the same lock as the full suite so no workflow overlaps on the public demo.
+# Share the lock with every ParaBank workflow.
 concurrency:
   group: parabank-demo
   cancel-in-progress: false
 
 jobs:
-  api:
-    name: API module (Chromium, sequential)
+  api-transfer-edge-cases:
+    name: API transfer edge cases (Chromium, sequential)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,15 +33,17 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: TypeScript compile
         run: npx tsc --noEmit
-      - name: Unit tests
-        run: npm run test:unit
-      - name: API tests
-        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/api
-      - name: Upload API evidence
+      - name: Run only the three previously blocked API tests
+        run: >-
+          npx playwright test -c playwright.ci.config.ts
+          --project=chromium --workers=1 --retries=0
+          --grep "transfer from a non-existent account is refused|transfer to a non-existent account does not debit the source|transfer without an amount is refused"
+          tests/api/transfer-api.spec.ts
+      - name: Upload API edge-case evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: api-module-results
+          name: api-transfer-edge-case-results
           path: |
             test-results/
             findings/
