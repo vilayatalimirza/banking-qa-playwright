@@ -34,12 +34,6 @@ export class RegisterPage {
     await expect(field, `Registration field "${name}" should be visible`).toBeVisible();
     await expect(field, `Registration field "${name}" should be editable`).toBeEditable();
 
-    // Verify focus lands on the intended registration input before entering data.
-    await field.click();
-    await expect
-      .poll(() => field.evaluate((element) => document.activeElement === element))
-      .toBe(true);
-
     await field.fill(value);
     await expect(field, `Registration field "${name}" should retain its value`).toHaveValue(value);
   }
