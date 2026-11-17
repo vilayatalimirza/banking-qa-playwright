@@ -2,7 +2,7 @@
 
 Environment: public ParaBank demo (https://parabank.parasoft.com/parabank/), exercised with Playwright UI and API tests across multiple runs. Frequencies are stated per finding where recorded; do not assume all findings were reproduced in the same run.
 Oracle: invariants (must always hold) and requirements (expected bank behaviour). Requirements assume a standard retail account with no overdraft product.
-Thirty-six test titles are registered in `data/known-defects.ts` as expected-failure guards. Documented findings without a registered guard are labelled as observations or awaiting confirmation; they are not silently treated as expected failures. BUG-011 and BUG-020 are documented but have no registered guard.
+Thirty-five test titles are registered in `data/known-defects.ts` as expected-failure guards. GAP-002 is handled by a conditional guard in the compliance spec: it is marked as an expected failure only when registration with SSN `abc` actually creates a customer. Setup and environment failures remain unexpected. Documented findings without a registered guard are labelled as observations or awaiting confirmation; they are not silently treated as expected failures. BUG-011 and BUG-020 are documented but have no registered guard.
 
 | ID | Title | Severity | Priority | Status |
 |----|-------|----------|----------|--------|
@@ -253,6 +253,7 @@ Because BUG-007 tests crash at navigation rather than at an assertion, an expect
 **Test:** `PSD2 SCA: a payment above the exemption limit needs a second factor` (tracked, expected to fail until a challenge exists).
 
 ## GAP-002: Registration accepts an invalid SSN (no KYC data validation)
-**Severity:** Medium (demo system; High for a real bank). **Priority:** P3. **Type:** compliance gap. **Reproduced:** 1 of 1 run.
-**Steps:** open Register, fill the form with SSN `abc`, submit. **Actual:** the customer is created and logged in. **Expected:** identity fields are validated (format at minimum) before an account exists; real KYC/CDD also verifies identity against documents or a registry.
-**Test:** `KYC: registration refuses an obviously invalid SSN` (tracked, expected to fail until validation exists).
+**Severity:** Medium (demo system; High for a real bank). **Priority:** P3. **Type:** compliance gap.
+**Steps:** open Register, fill every required field with valid synthetic data except SSN `abc`, submit. **Expected:** identity fields are validated (format at minimum) before an account exists; real KYC/CDD also verifies identity against documents or a registry.
+**Historical evidence:** an earlier run recorded customer creation with SSN `abc`. The 16 Nov 2026 run-20 observation is **not valid evidence**: its screenshot shows the First Name field blank and the page reports `First name is required.` That run did not demonstrate whether the SSN was accepted or rejected, so it is excluded from the reproduction count.
+**Test:** `KYC: registration refuses an obviously invalid SSN`. The guard verifies the First Name and SSN inputs before submission, then requires visible validation feedback when no customer is created. It is marked as an expected failure only when a Welcome page proves that SSN `abc` was accepted; setup failures and ambiguous outcomes are unexpected.

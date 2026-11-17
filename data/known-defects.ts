@@ -208,9 +208,4 @@ export const KNOWN_DEFECTS: Record<string, KnownDefect> = {
     summary: 'A $100 remote payment completes with no second factor or step-up challenge (no PSD2 SCA)',
     status: 'confirmed',
   },
-  'KYC: registration refuses an obviously invalid SSN': {
-    id: 'GAP-002',
-    summary: 'Registration accepts an obviously invalid SSN ("abc"): no identity data validation at onboarding',
-    status: 'confirmed',
-  },
 };

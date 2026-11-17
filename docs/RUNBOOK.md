@@ -82,7 +82,7 @@ The metrics apply to the merged full Chromium functional suite only. Unit/typech
 
 The public demo is shared and rate-limited. GitHub Actions serializes the two Chromium shards, then the cross-browser smoke jobs, then visual regression; this avoids simultaneous jobs competing for demo state. A workflow-level concurrency group prevents overlapping workflows from running against the demo at once.
 
-Preflight checks the home-page HTTP status and requires the actual `register.htm` navigation link. An HTTP error or challenge page stops the run early instead of producing repeated Register-locator timeouts. For API/hybrid tests, the `session` fixture reads the first account ID from the already-authenticated UI and resolves its customer ID through the account API; it does not issue a second API login merely to discover that ID.
+Preflight checks the home-page HTTP status and requires the actual `register.htm` navigation link. An HTTP error or challenge page stops the run early instead of producing repeated Register-locator timeouts. For API/hybrid tests, the `session` fixture reads the first account ID from the already-authenticated UI and resolves its customer ID through the account API; it does not issue a second API login merely to discover that ID. The registration page object also checks the navigation response and waits only five seconds for the Register link, then reports page text when the demo becomes unavailable mid-run.
 
 ## Visual regression
 

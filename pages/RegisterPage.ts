@@ -15,8 +15,20 @@ export class RegisterPage {
   }
 
   async open(): Promise<void> {
-    await this.page.goto('index.htm');
-    await this.page.getByRole('link', { name: 'Register' }).click();
+    const response = await this.page.goto('index.htm');
+    if (response && response.status() >= 400) {
+      throw new Error(`ParaBank home page returned HTTP ${response.status()} while opening registration`);
+    }
+
+    const registerLink = this.page.getByRole('link', { name: 'Register' });
+    try {
+      await registerLink.waitFor({ state: 'visible', timeout: 5000 });
+    } catch {
+      const bodyText = await this.page.locator('body').innerText().catch(() => '');
+      const detail = bodyText.replace(/\\s+/g, ' ').slice(0, 180) || 'page body was empty';
+      throw new Error(`ParaBank Register link was unavailable after loading index.htm. Page text: ${detail}`);
+    }
+    await registerLink.click();
   }
 
   async fillForm(customer: Customer): Promise<void> {

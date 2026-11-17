@@ -13,7 +13,7 @@ The focus is not just whether a button works. It is whether balances remain corr
 | Requirements | 24 risk-scored requirements across payments, security, compliance, accessibility and framework quality |
 | Defect findings | 21 numbered BUG reports; confirmation state and evidence are recorded per finding |
 | Compliance exercises | 2 separately labelled control gaps: PSD2 SCA and KYC validation |
-| Expected-failure registry | 36 test titles across 21 identifiers (19 BUG IDs and 2 GAP IDs) |
+| Expected-failure registry | 35 test titles across 20 identifiers (19 BUG IDs and GAP-001); GAP-002 is conditionally marked only when invalid SSN registration creates a customer |
 | Test levels | Unit, page contract, UI E2E, API, hybrid, negative, resilience, security, accessibility, visual and compliance |
 
 See [BUG-REPORTS.md](docs/BUG-REPORTS.md), [TEST-STRATEGY.md](docs/TEST-STRATEGY.md), and [TRACEABILITY.md](docs/TRACEABILITY.md). Two registered findings (BUG-006 and BUG-019) remain marked to-confirm. BUG-011 and BUG-020 are documented findings but are not currently registered as expected-failure guards.
