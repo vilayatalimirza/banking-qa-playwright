@@ -1,18 +1,8 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import type { Customer } from '../data/factories';
 
 export class RegisterPage {
   constructor(private readonly page: Page) {}
-
-  /** The form is a table: each row holds a text label and an input. */
-  private textField(label: string): Locator {
-    return this.page.getByRole('row').filter({ hasText: label }).getByRole('textbox');
-  }
-
-  /** Password inputs have no "textbox" role, so we fall back to a plain input inside the row. */
-  private passwordField(label: string): Locator {
-    return this.page.getByRole('row').filter({ hasText: label }).locator('input');
-  }
 
   async open(): Promise<void> {
     const response = await this.page.goto('index.htm');
@@ -32,17 +22,33 @@ export class RegisterPage {
   }
 
   async fillForm(customer: Customer): Promise<void> {
-    await this.textField('First Name:').fill(customer.firstName);
-    await this.textField('Last Name:').fill(customer.lastName);
-    await this.textField('Address:').fill(customer.address);
-    await this.textField('City:').fill(customer.city);
-    await this.textField('State:').fill(customer.state);
-    await this.textField('Zip Code:').fill(customer.zipCode);
-    await this.textField('Phone #:').fill(customer.phone);
-    await this.textField('SSN:').fill(customer.ssn);
-    await this.textField('Username:').fill(customer.username);
-    await this.passwordField('Password:').fill(customer.password);
-    await this.passwordField('Confirm:').fill(customer.password);
+    // Use ParaBank's stable field IDs instead of filtering table rows by label text.
+    // Verify each non-password field immediately so a missed fill is caught before submission.
+    const fields: Array<[string, string]> = [
+      ['customer.firstName', customer.firstName],
+      ['customer.lastName', customer.lastName],
+      ['customer.address.street', customer.address],
+      ['customer.address.city', customer.city],
+      ['customer.address.state', customer.state],
+      ['customer.address.zipCode', customer.zipCode],
+      ['customer.phoneNumber', customer.phone],
+      ['customer.ssn', customer.ssn],
+      ['customer.username', customer.username],
+    ];
+
+    for (const [id, value] of fields) {
+      const field = this.page.locator(`input[id="${id}"]`);
+      await expect(field, `Registration field ${id} should exist exactly once`).toHaveCount(1);
+      await field.fill(value);
+      await expect(field, `Registration field ${id} should retain its value`).toHaveValue(value);
+    }
+
+    const password = this.page.locator('input[id="customer.password"]');
+    const confirmation = this.page.locator('input[id="repeatedPassword"]');
+    await expect(password).toHaveCount(1);
+    await expect(confirmation).toHaveCount(1);
+    await password.fill(customer.password);
+    await confirmation.fill(customer.password);
   }
 
   async submit(): Promise<void> {
