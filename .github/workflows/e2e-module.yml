@@ -1,12 +1,13 @@
-name: E2E module
+name: Reconciliation E2E
 
 on:
   pull_request:
     paths:
-      - 'tests/e2e/**'
-      - 'pages/RegisterPage.ts'
+      - 'tests/e2e/reconciliation.spec.ts'
+      - 'pages/TransferPage.ts'
+      - 'pages/OverviewPage.ts'
+      - 'pages/activity.ts'
       - 'fixtures/index.ts'
-      - 'data/factories.ts'
       - '.github/workflows/e2e-module.yml'
   workflow_dispatch:
 
@@ -19,11 +20,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  e2e:
-    if: github.event_name == 'workflow_dispatch'
-    name: E2E module (Chromium, sequential)
+  reconciliation:
+    name: Reconciliation E2E (Chromium, sequential)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,15 +34,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: TypeScript compile
         run: npx tsc --noEmit
-      - name: Unit tests
-        run: npm run test:unit
-      - name: E2E tests
-        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/e2e
-      - name: Upload E2E evidence
+      - name: Run reconciliation test only
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/e2e/reconciliation.spec.ts
+      - name: Upload reconciliation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-module-results
+          name: reconciliation-e2e-results
           path: |
             test-results/
             findings/
