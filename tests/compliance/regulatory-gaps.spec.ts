@@ -65,7 +65,7 @@ test(
     observe('kyc-invalid-ssn', {
       accountCreated: welcomed,
       registrationFormVisible,
-      validationFeedback,
+      validationFeedback: validationFeedback.join(' | ') || null,
       verdict: rejected ? 'REJECTED_WITH_VISIBLE_FEEDBACK' : welcomed ? 'INVALID_SSN_ACCEPTED' : 'INCONCLUSIVE',
     });
 
