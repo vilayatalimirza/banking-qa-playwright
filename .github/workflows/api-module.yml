@@ -1,13 +1,16 @@
-name: API transfer edge-case repro
+name: API module
 
 on:
   pull_request:
     paths:
       - '.github/workflows/api-module.yml'
-      - 'tests/api/transfer-api.spec.ts'
-      - 'fixtures/index.ts'
+      - 'tests/api/**'
+      - 'api/**'
       - 'fixtures/api.ts'
+      - 'fixtures/index.ts'
       - 'pages/RegisterPage.ts'
+      - 'utils/money.ts'
+      - 'data/factories.ts'
   workflow_dispatch:
 
 permissions:
@@ -19,10 +22,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  api-transfer-edge-cases:
-    name: API transfer edge cases (Chromium, sequential)
+  api:
+    name: API module (Chromium, sequential)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,17 +36,15 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: TypeScript compile
         run: npx tsc --noEmit
-      - name: Run only the three previously blocked API tests
-        run: >-
-          npx playwright test -c playwright.ci.config.ts
-          --project=chromium --workers=1 --retries=0
-          --grep "transfer from a non-existent account is refused|transfer to a non-existent account does not debit the source|transfer without an amount is refused"
-          tests/api/transfer-api.spec.ts
-      - name: Upload API edge-case evidence
+      - name: Unit tests
+        run: npm run test:unit
+      - name: API tests only
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/api
+      - name: Upload API evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: api-transfer-edge-case-results
+          name: api-module-results
           path: |
             test-results/
             findings/
