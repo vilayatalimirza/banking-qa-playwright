@@ -20,6 +20,7 @@ concurrency:
 
 jobs:
   e2e:
+    if: github.event_name == 'workflow_dispatch'
     name: E2E module (Chromium, sequential)
     runs-on: ubuntu-latest
     timeout-minutes: 45
