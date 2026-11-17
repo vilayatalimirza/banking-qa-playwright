@@ -7,7 +7,6 @@ on:
       - 'fixtures/api.ts'
       - 'fixtures/index.ts'
       - 'api/**'
-      - 'pages/RegisterPage.ts'
       - '.github/workflows/api-module.yml'
   workflow_dispatch:
 
