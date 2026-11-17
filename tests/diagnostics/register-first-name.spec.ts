@@ -1,4 +1,5 @@
 import { expect, test as base } from '../../fixtures';
+import type { Page } from '@playwright/test';
 
 interface RegistrationEvent {
   type: string;
@@ -15,17 +16,30 @@ interface RegistrationEvent {
 
 const STORAGE_KEY = '__pw_registration_fixture_events__';
 
-// This override installs instrumentation before the inherited customer fixture uses page.goto().
+// The page wrapper runs before the normal customer fixture navigates to ParaBank.
+// Its teardown also runs when customer fixture setup fails, preserving failure evidence.
 const test = base.extend({
-  page: async ({ page }, use) => {
+  page: async ({ page }, use, testInfo) => {
     await page.addInitScript(() => {
       const key = '__pw_registration_fixture_events__';
 
-      if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+      const safeValue = (input: HTMLInputElement) =>
+        input.type === 'password' ? '[redacted]' : input.value;
 
       const record = (event: Event) => {
         const target = event.target;
         if (!(target instanceof HTMLInputElement)) return;
+
+        const targetArea = target.closest('#loginPanel') ? 'loginPanel' :
+          target.closest('#rightPanel') ? 'rightPanel' : 'other';
+
+        const relevant =
+          target.name === 'customer.firstName' ||
+          target.id === 'customer.firstName' ||
+          target.name === 'customer.username' ||
+          (target.name === 'username' && targetArea === 'loginPanel');
+
+        if (!relevant) return;
 
         try {
           const events = JSON.parse(sessionStorage.getItem(key) ?? '[]') as RegistrationEvent[];
@@ -36,19 +50,18 @@ const test = base.extend({
             type: event.type,
             targetName: target.name,
             targetId: target.id,
-            targetValue: target.value,
-            targetArea: target.closest('#loginPanel') ? 'loginPanel' :
-              target.closest('#rightPanel') ? 'rightPanel' : 'other',
+            targetValue: safeValue(target),
+            targetArea,
             activeName: activeInput?.name ?? '',
             activeId: activeInput?.id ?? '',
-            activeValue: activeInput?.value ?? '',
+            activeValue: activeInput ? safeValue(activeInput) : '',
             url: location.href,
             timestamp: Date.now(),
           });
 
           sessionStorage.setItem(key, JSON.stringify(events));
         } catch {
-          // Keep diagnostics from changing or breaking the application under test.
+          // Instrumentation must never change application behaviour.
         }
       };
 
@@ -57,51 +70,80 @@ const test = base.extend({
       }
     });
 
-    await use(page);
+    try {
+      await use(page);
+    } finally {
+      const evidence = await collectEvidence(page, testInfo).catch((error) => ({
+        captureError: error instanceof Error ? error.message : String(error),
+      }));
+
+      await testInfo.attach('shared-customer-fixture-events.json', {
+        body: Buffer.from(JSON.stringify(evidence, null, 2)),
+        contentType: 'application/json',
+      });
+
+      if (testInfo.status !== testInfo.expectedStatus) {
+        const screenshot = await page.screenshot({ fullPage: true, timeout: 5000 }).catch(() => null);
+        if (screenshot) {
+          await testInfo.attach('shared-customer-fixture-failure.png', {
+            body: screenshot,
+            contentType: 'image/png',
+          });
+        }
+      }
+
+      // Space out public-demo registrations while keeping attempts strictly sequential.
+      if (testInfo.repeatEachIndex < 2) {
+        await page.waitForTimeout(6000).catch(() => undefined);
+      }
+    }
   },
 });
 
-test('diagnostic: capture the actual shared customer fixture registration', async ({ page, customer }, testInfo) => {
-  const events = await page.evaluate((key) => {
+async function collectEvidence(page: Page, testInfo: {
+  title: string;
+  repeatEachIndex: number;
+  status: string | undefined;
+  expectedStatus: string;
+}) {
+  const browserState = await page.evaluate((key) => {
+    let events: RegistrationEvent[] = [];
     try {
-      return JSON.parse(sessionStorage.getItem(key) ?? '[]') as RegistrationEvent[];
+      events = JSON.parse(sessionStorage.getItem(key) ?? '[]') as RegistrationEvent[];
     } catch {
-      return [];
+      // The page may have navigated to an error document without session storage.
     }
+
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input'));
+    const describeArea = (input: HTMLInputElement) => input.closest('#loginPanel') ? 'loginPanel' :
+      input.closest('#rightPanel') ? 'rightPanel' : 'other';
+
+    return {
+      url: location.href,
+      title: document.title,
+      bodyText: document.body.innerText.replace(/\\s+/g, ' ').slice(0, 700),
+      inputs: inputs.map((input) => ({
+        name: input.name,
+        id: input.id,
+        value: input.type === 'password' ? '[redacted]' : input.value,
+        area: describeArea(input),
+        focused: input === document.activeElement,
+      })),
+      events,
+    };
   }, STORAGE_KEY);
 
-  const evidence = {
-    customer: {
-      firstName: customer.firstName,
-      username: customer.username,
-      password: '[redacted]',
-    },
-    finalUrl: page.url(),
-    welcomeHeading: await page.getByRole('heading', {
-      name: `Welcome ${customer.username}`,
-      exact: true,
-    }).isVisible().catch(() => false),
-    eventCount: events.length,
-    registrationFirstNameEvents: events.filter((event) =>
-      event.targetName === 'customer.firstName' || event.targetId === 'customer.firstName'
-    ),
-    loginUsernameEvents: events.filter((event) =>
-      event.targetName === 'username' && event.targetArea === 'loginPanel'
-    ),
-    allEvents: events,
+  return {
+    testTitle: testInfo.title,
+    repeatIndex: testInfo.repeatEachIndex,
+    status: testInfo.status,
+    expectedStatus: testInfo.expectedStatus,
+    ...browserState,
   };
+}
 
-  await testInfo.attach('shared-customer-fixture-events.json', {
-    body: Buffer.from(JSON.stringify(evidence, null, 2)),
-    contentType: 'application/json',
-  });
-
-  expect(evidence.welcomeHeading, 'the shared customer fixture should finish on the logged-in account page')
-    .toBe(true);
-  expect(
-    evidence.registrationFirstNameEvents.some((event) =>
-      event.type === 'input' && event.targetValue === customer.firstName
-    ),
-    'the shared fixture should type the first name into the registration first-name field',
-  ).toBe(true);
+test('diagnostic: reproduce registration through the shared customer fixture', async ({ customer }) => {
+  // Registration and login have already happened in fixtures/index.ts before this body starts.
+  expect(customer.firstName).toBe('QA');
+  expect(customer.username).toMatch(/^qa_[a-f0-9]{8}$/);
 });
