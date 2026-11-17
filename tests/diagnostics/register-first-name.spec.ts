@@ -42,7 +42,7 @@ const test = base.extend({
         const area = target.closest('#loginPanel') ? 'loginPanel' :
           target.closest('#rightPanel') ? 'rightPanel' : 'other';
 
-        // Capture every registration field plus the login username field.
+        // Capture every registration field plus the login username field across each sequential repeat.
         if (area !== 'rightPanel' && !(area === 'loginPanel' && target.name === 'username')) return;
 
         const active = document.activeElement;
