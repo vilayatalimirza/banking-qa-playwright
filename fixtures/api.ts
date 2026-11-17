@@ -1,3 +1,4 @@
+import { expect } from '@playwright/test';
 import { ParaBankApi } from '../api/ParaBankApi';
 import { buildCustomer } from '../data/factories';
 import { test as tracked } from './tracked';
