@@ -42,7 +42,7 @@ jobs:
       - run: npx playwright test -c playwright.ci.config.ts --project=chromium tests/unit
 
   suite:
-    name: full suite (Chromium, \${{ matrix.module }})
+    name: full suite (Chromium, ${{ matrix.module }})
     needs: unit
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -81,11 +81,11 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: run module sequentially
-        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 "\${{ matrix.test_path }}"
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 "${{ matrix.test_path }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: blob-\${{ matrix.module }}
+          name: blob-${{ matrix.module }}
           path: |
             blob-report/
             findings/observations.jsonl
