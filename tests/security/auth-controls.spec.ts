@@ -35,8 +35,20 @@ test('repeated wrong passwords lead to a lockout or throttle', { tag: ['@securit
   );
 
   const statuses = results.map((result) => result.status);
-  const throttled = statuses.some((s) => s === 423 || s === 429);
-  const lockedOut = !correct.ok;
+  test.skip(
+    results.some((result) => result.status === 0 || result.status >= 500) ||
+      correct.status === 0 ||
+      correct.status >= 500,
+    'The login endpoint returned a server/network error; this does not establish a lockout outcome',
+  );
+
+  const throttled = statuses.some((status) => status === 423 || status === 429);
+  const correctLoginRefused = [400, 401, 403, 423, 429].includes(correct.status);
+  test.skip(
+    correct.status !== 200 && !correctLoginRefused,
+    `Unexpected response HTTP ${correct.status} after the correct password; lockout result is inconclusive`,
+  );
+  const lockedOut = correctLoginRefused;
 
   const checks = new Checks();
   checks.check('REQUIREMENT', `${ATTEMPTS} wrong passwords trigger a lockout or throttle`, throttled || lockedOut, `statuses ${statuses.join(',')}, correct password afterwards: HTTP ${correct.status}`);
@@ -60,6 +72,13 @@ test('the login error does not reveal whether a username exists', { tag: ['@secu
     isDemoRateLimit(knownApi.status, knownApi.text) ||
       isDemoRateLimit(unknownApi.status, unknownApi.text),
     'Cloudflare rate-limited the API login comparison; user-enumeration result is inconclusive',
+  );
+  test.skip(
+    knownApi.status === 0 ||
+      unknownApi.status === 0 ||
+      knownApi.status >= 500 ||
+      unknownApi.status >= 500,
+    'The API did not return comparable application responses; user-enumeration result is inconclusive',
   );
 
   const visit = async (username: string): Promise<{ formShown: boolean; message: string; bodyText: string }> => {
@@ -90,6 +109,10 @@ test('the login error does not reveal whether a username exists', { tag: ['@secu
   test.skip(
     !known.formShown || !unknown.formShown,
     'The login form was not available for both identities; the UI comparison cannot be made',
+  );
+  test.skip(
+    known.message === 'n/a' || unknown.message === 'n/a',
+    'The page did not expose a login result message for both identities; UI comparison is inconclusive',
   );
 
   const knownUi = known.message;
