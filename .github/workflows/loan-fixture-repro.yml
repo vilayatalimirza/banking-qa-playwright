@@ -1,0 +1,43 @@
+name: Loan fixture reproduction (un-instrumented)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/loan-fixture-repro.yml'
+      - 'tests/e2e/loan.spec.ts'
+      - 'fixtures/index.ts'
+      - 'pages/RegisterPage.ts'
+
+permissions:
+  contents: read
+
+# Serialize all requests to the shared, rate-limited ParaBank demo.
+concurrency:
+  group: parabank-demo
+  cancel-in-progress: false
+
+jobs:
+  loan-fixture-repro:
+    name: Original loan tests (Chromium, sequential, no instrumentation)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run only loan.spec.ts three times without retries
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 --repeat-each=3 tests/e2e/loan.spec.ts
+      - name: Upload failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: loan-fixture-reproduction
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
