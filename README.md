@@ -27,9 +27,35 @@ Each GitHub Actions full-suite run generates a **run-specific metrics summary** 
 - **Flaky tests, unexpected failures, and defect guards that unexpectedly pass:** shown as separate counts.
 - **Known-defect probes that fail as expected and skipped tests:** shown separately and excluded from the pass-rate denominator.
 
-The metrics cover the merged **full Chromium suite**. Unit/typecheck, Firefox, WebKit, Pixel 7 smoke and visual jobs are separate CI jobs; they are not mixed into the Chromium pass rate. A retry-passed test improves the final rate but remains visible as flaky.
+The published aggregate combines executions from the unit, full regression, Firefox, WebKit, Pixel 7 mobile smoke and visual-baseline-generation jobs. It reports first-attempt and eventual outcomes, keeps retry-passed tests marked as flaky, and excludes documented known-defect probes that fail as expected. The aggregate is an execution-level measure across CI jobs, not a count of unique test cases.
 
 [View workflow runs and their per-run summaries](https://github.com/vilayatalimirza/banking-qa-playwright/actions/workflows/playwright.yml). Run artifacts include the merged HTML report and a SHA-256 audit-evidence bundle.
+
+## Latest overall CI execution result
+
+The latest completed workflow is [run #45, 18 November 2026](https://github.com/vilayatalimirza/banking-qa-playwright/actions/runs/44341598081), on commit `567a60d`.
+
+**Aggregate CI execution pass rate: 89.3% (175/196).**
+
+This aggregate combines test executions from the unit, full regression, Firefox smoke, WebKit smoke, Pixel 7 mobile smoke and visual-baseline-generation jobs. It counts executions across jobs, not unique test cases; a scenario exercised in more than one job is counted separately for each execution.
+
+| CI job | Successful executions counted | Total executions counted | Notes |
+|---|---:|---:|---|
+| Unit tests | 109 | 109 | All passed |
+| Full regression suite | 45 | 66 | 38 known-defect probes that failed as expected are excluded |
+| Firefox smoke | 5 | 5 | 4 passed first try; 1 passed on retry and is still reported as flaky |
+| WebKit smoke | 5 | 5 | All passed |
+| Pixel 7 mobile smoke | 5 | 5 | All passed |
+| Visual baseline generation | 6 | 6 | Snapshots generated with `--update-snapshots`; comparison was skipped |
+| **Aggregate** | **175** | **196** | **89.3%** |
+
+The calculation is `175 / 196 × 100 = 89.2857…%`, rounded to **89.3%**. The 38 expected known-defect probe failures are excluded from the denominator because those probes behaved as expected for already documented defects. The Firefox retry-passed test is counted as an eventual success and remains identified as flaky.
+
+**Interpretation:** 89.3% is the combined CI execution pass rate for this portfolio summary. It is not a unique-test-case pass rate. It combines separate job executions, including browser smoke tests and successful baseline generation.
+
+The unit-test job passed **109/109 unit tests**. The workflow's full regression jobs included failures in negative, E2E, hybrid and API coverage. The logs include HTTP 429 responses from the shared ParaBank demo, a missing Accounts Overview heading, and an account-row count mismatch. See the linked run for the job-level evidence and generated report.
+
+The visual job generated six Linux baseline snapshots and uploaded them as an artifact. Its baseline-comparison step was skipped, so these six executions count as successful baseline generation in the aggregate, **not** as proof that visual comparison passed or that the snapshots were reviewed and committed.
 
 ## Technology
 
