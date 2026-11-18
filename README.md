@@ -31,9 +31,9 @@ The published aggregate combines executions from the unit, full regression, Fire
 
 [View workflow runs and their per-run summaries](https://github.com/vilayatalimirza/banking-qa-playwright/actions/workflows/playwright.yml). Run artifacts include the merged HTML report and a SHA-256 audit-evidence bundle.
 
-## Latest overall CI execution result
+## Featured aggregate CI snapshot
 
-The latest completed workflow is [run #45, 18 November 2026](https://github.com/vilayatalimirza/banking-qa-playwright/actions/runs/44341598081), on commit `567a60d`.
+The documented aggregate snapshot below comes from [workflow run #45, 18 November 2026](https://github.com/vilayatalimirza/banking-qa-playwright/actions/runs/44341598081), on commit `567a60d`. It is kept as the featured aggregate example and is not described as the newest workflow result.
 
 **Aggregate CI execution pass rate: 89.3% (175/196).**
 
@@ -57,6 +57,10 @@ The unit-test job passed **109/109 unit tests**. The workflow's full regression 
 
 The visual job generated six Linux baseline snapshots and uploaded them as an artifact. Its baseline-comparison step was skipped, so these six executions count as successful baseline generation in the aggregate, **not** as proof that visual comparison passed or that the snapshots were reviewed and committed.
 
+## Newer workflow status
+
+The latest completed workflow is [run #46, 18 November 2026](https://github.com/vilayatalimirza/banking-qa-playwright/actions/runs/44390733569). The overall workflow concluded with failures. The type-check and unit-test job passed (109/109), and the Firefox, WebKit, and Pixel 7 smoke jobs passed. The full-suite E2E, contract, hybrid, API, and negative jobs failed, as did the visual-regression job. The 89.3% figure above remains specifically tied to run #45; use run #46 for the newer execution evidence.
+
 ## Technology
 
 - TypeScript, Node.js, Playwright Test
@@ -67,18 +71,23 @@ The visual job generated six Linux baseline snapshots and uploaded them as an ar
 - GitHub Actions (validated workflow); a GitLab CI configuration is included but not yet validated on a GitLab runner
 - JSON/JUnit/HTML reporting, requirement traceability and SHA-256 evidence manifests
 
-## Architecture
+## Architecture at a glance
+
+Risk-scored requirements drive the test scope. GitHub Actions executes the Playwright suites, while results feed traceability and audit reporting.
 
 ```mermaid
-flowchart LR
-  T[Tests: UI / API / negative / security / compliance] --> F[Typed fixtures]
-  F --> P[Page objects]
-  F --> A[ParaBank API client]
-  T --> C[Checks and observations]
-  C --> O[(findings JSONL)]
-  T --> R[Playwright reports]
-  R --> X[Requirement traceability]
-  R --> E[Audit evidence bundle]
+flowchart TB
+  REQUIREMENTS["24 risk-scored requirements"] --> SPECS["Playwright test suites"]
+  CI["GitHub Actions jobs"] --> SPECS
+  SPECS --> FIXTURES["Typed fixtures + page objects"]
+  FIXTURES --> UI["ParaBank UI"]
+  FIXTURES --> API["ParaBank API client"]
+  SPECS --> MONEY["Money invariants + balance checks"]
+  SPECS --> DEFECTS["Known-defect probes + negative cases"]
+  SPECS --> RESULTS["JSON results + observations"]
+  RESULTS --> TRACE["Requirement traceability"]
+  RESULTS --> REPORT["Merged HTML report"]
+  RESULTS --> EVIDENCE["Audit-evidence bundle"]
 ```
 
 ## Run locally
