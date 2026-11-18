@@ -31,6 +31,26 @@ The metrics cover the merged **full Chromium suite**. Unit/typecheck, Firefox, W
 
 [View workflow runs and their per-run summaries](https://github.com/vilayatalimirza/banking-qa-playwright/actions/workflows/playwright.yml). Run artifacts include the merged HTML report and a SHA-256 audit-evidence bundle.
 
+## Latest full Chromium regression snapshot
+
+The latest completed full regression is [workflow run #45, 18 November 2026](https://github.com/vilayatalimirza/banking-qa-playwright/actions/runs/44341598081), on commit `567a60d`. **The overall run failed; this is not a clean-regression claim.**
+
+| Full Chromium outcome | Count |
+|---|---:|
+| Passed on first attempt | 45 |
+| Passed after retry | 0 |
+| Unexpected failures | 20 |
+| Known-defect guards that passed unexpectedly | 1 |
+| Known-defect probes that failed as expected | 38 |
+| Skipped | 0 |
+| **First-attempt and final pass rate** | **68.2%** |
+
+The pass-rate denominator is 66: the 45 first-attempt passes, 20 unexpected failures and one known-defect guard that passed unexpectedly. Probes that fail as expected for already documented defects are excluded. No tests passed only after retry in this run.
+
+The separate type-check and unit-test job passed **109/109 unit tests**. Contract, accessibility, resilience, security and compliance jobs passed; the negative, E2E, hybrid and API full-suite jobs failed. The logs include HTTP 429 responses from the shared ParaBank demo, a missing Accounts Overview heading, and an account-row count mismatch. See the linked run for the job-level evidence and generated report.
+
+The visual job regenerated baseline files as an artifact, but its baseline-comparison step was skipped. This does **not** establish that Linux visual comparison passed or that new baselines were committed.
+
 ## Technology
 
 - TypeScript, Node.js, Playwright Test
