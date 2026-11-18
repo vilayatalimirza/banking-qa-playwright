@@ -71,18 +71,23 @@ The latest completed workflow is [run #46, 18 November 2026](https://github.com/
 - GitHub Actions (validated workflow); a GitLab CI configuration is included but not yet validated on a GitLab runner
 - JSON/JUnit/HTML reporting, requirement traceability and SHA-256 evidence manifests
 
-## Architecture
+## Architecture at a glance
+
+Risk-scored requirements drive the test scope. GitHub Actions executes the Playwright suites, while results feed traceability and audit reporting.
 
 ```mermaid
-flowchart LR
-  T[Tests: UI / API / negative / security / compliance] --> F[Typed fixtures]
-  F --> P[Page objects]
-  F --> A[ParaBank API client]
-  T --> C[Checks and observations]
-  C --> O[(findings JSONL)]
-  T --> R[Playwright reports]
-  R --> X[Requirement traceability]
-  R --> E[Audit evidence bundle]
+flowchart TB
+  REQUIREMENTS["24 risk-scored requirements"] --> SPECS["Playwright test suites"]
+  CI["GitHub Actions jobs"] --> SPECS
+  SPECS --> FIXTURES["Typed fixtures + page objects"]
+  FIXTURES --> UI["ParaBank UI"]
+  FIXTURES --> API["ParaBank API client"]
+  SPECS --> MONEY["Money invariants + balance checks"]
+  SPECS --> DEFECTS["Known-defect probes + negative cases"]
+  SPECS --> RESULTS["JSON results + observations"]
+  RESULTS --> TRACE["Requirement traceability"]
+  RESULTS --> REPORT["Merged HTML report"]
+  RESULTS --> EVIDENCE["Audit-evidence bundle"]
 ```
 
 ## Run locally
