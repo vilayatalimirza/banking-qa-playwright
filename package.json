@@ -1,10 +1,31 @@
 {
   "name": "banking-qa-playwright",
   "version": "1.0.0",
-  "description": "",
+  "description": "Playwright and TypeScript QA automation for ParaBank: financial invariants, API security, risk-based traceability and defect evidence.",
   "main": "index.js",
-  "scripts": {},
-  "keywords": [],
+  "scripts": {
+    "test": "playwright test",
+    "test:unit": "playwright test -c playwright.ci.config.ts --project=chromium tests/unit",
+    "test:full": "playwright test -c playwright.ci.config.ts --project=chromium tests/e2e tests/contract tests/api tests/hybrid tests/negative tests/resilience tests/security tests/a11y tests/compliance",
+    "test:smoke": "playwright test -c playwright.ci.config.ts --project=chromium --grep \"@smoke\"",
+    "test:cross-browser": "playwright test -c playwright.ci.config.ts --project=firefox-smoke --project=webkit-smoke --project=mobile-smoke",
+    "test:visual": "playwright test -c playwright.ci.config.ts --project=visual",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run test:unit",
+    "report:metrics": "tsx scripts/run-metrics.ts",
+    "report:traceability": "tsx scripts/traceability.ts",
+    "report:defects": "tsx scripts/defect-register.ts",
+    "report:findings": "tsx scripts/summarize-findings.ts",
+    "report:evidence": "tsx scripts/evidence-bundle.ts"
+  },
+  "keywords": [
+    "playwright",
+    "typescript",
+    "qa-automation",
+    "banking",
+    "api-testing",
+    "security-testing"
+  ],
   "type": "commonjs",
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

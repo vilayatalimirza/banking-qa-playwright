@@ -1,5 +1,5 @@
 import type { APIRequestContext } from '@playwright/test';
-import type { Payee } from '../data/factories';
+import type { Customer, Payee } from '../data/factories';
 import { parseMoney } from '../utils/money';
 
 /** What the server answered, with nothing hidden: tests decide what is acceptable. */
@@ -99,6 +99,45 @@ export class ParaBankApi {
       throw new Error(`${what} failed: HTTP ${result.status} ${result.text.slice(0, 200)}`);
     }
     return result;
+  }
+
+  /**
+   * Registers a synthetic customer through ParaBank's HTML registration endpoint.
+   * A page GET is required first so the server can establish its registration session.
+   * This setup client is kept separate from the anonymous API client used by security tests.
+   */
+  async registerCustomer(customer: Customer): Promise<number> {
+    const formPage = await this.ctx.get('register.htm');
+    if (!formPage.ok()) {
+      throw new Error(`Registration form GET failed: HTTP ${formPage.status()}`);
+    }
+
+    const response = await this.ctx.post('register.htm', {
+      form: {
+        'customer.firstName': customer.firstName,
+        'customer.lastName': customer.lastName,
+        'customer.address.street': customer.address,
+        'customer.address.city': customer.city,
+        'customer.address.state': customer.state,
+        'customer.address.zipCode': customer.zipCode,
+        'customer.phoneNumber': customer.phone,
+        'customer.ssn': customer.ssn,
+        'customer.username': customer.username,
+        'customer.password': customer.password,
+        repeatedPassword: customer.password,
+      },
+    });
+    const body = await response.text();
+    if (!response.ok()) {
+      throw new Error(`Customer registration failed: HTTP ${response.status()} ${body.slice(0, 200)}`);
+    }
+
+    const login = ParaBankApi.need(await this.login(customer.username, customer.password), 'Login after registration');
+    const id = (login.json as Record<string, unknown> | null)?.id;
+    if (typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0) {
+      throw new Error(`Login after registration returned no valid customer id: ${login.text.slice(0, 200)}`);
+    }
+    return id;
   }
 
   // ---- raw calls (never throw on HTTP errors) ----

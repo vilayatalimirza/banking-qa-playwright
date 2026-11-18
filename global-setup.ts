@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { inspectDemoHome } from './utils/preflight';
 
 const BASE = process.env.BASE_URL ?? 'https://parabank.parasoft.com/parabank/';
 
@@ -7,9 +8,7 @@ async function demoIsUp(): Promise<{ up: boolean; detail: string }> {
   try {
     const response = await fetch(new URL('index.htm', BASE), { signal: AbortSignal.timeout(20_000) });
     const body = await response.text();
-    return body.includes('Register')
-      ? { up: true, detail: `HTTP ${response.status}` }
-      : { up: false, detail: `HTTP ${response.status} but no Register link (error or challenge page?)` };
+    return inspectDemoHome(response.status, body);
   } catch (error) {
     return { up: false, detail: error instanceof Error ? error.message : String(error) };
   }

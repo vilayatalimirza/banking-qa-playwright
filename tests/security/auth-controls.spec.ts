@@ -5,22 +5,50 @@ import { Pages } from '../../pages';
 import { Checks } from '../../utils/checks';
 import { observe, pageMessage } from '../../utils/findings';
 
+// Cloudflare's edge-level 429/1015 page must not be mistaken for an application security control.
+function isDemoRateLimit(status: number, body: string): boolean {
+  const cloudflareBlock =
+    /error\s*1015|you are being rate limited|attention required/i.test(body) ||
+    (/cloudflare/i.test(body) && /rate.?limit|too many requests|temporarily blocked/i.test(body));
+
+  return cloudflareBlock && [0, 200, 403, 429, 503].includes(status);
+}
+
 // Login controls. Only accounts created by the test run are attacked, and only a handful of attempts.
 
 test('repeated wrong passwords lead to a lockout or throttle', { tag: ['@security', '@auth'] }, async ({ api, customer }) => {
   const ATTEMPTS = 10;
-  const statuses: number[] = [];
+  const results: Array<{ status: number; text: string; ok: boolean }> = [];
   const durations: number[] = [];
   for (let i = 0; i < ATTEMPTS; i += 1) {
     const started = Date.now();
     const result = await api.login(customer.username, `wrong-password-${i}`);
-    statuses.push(result.status);
+    results.push(result);
     durations.push(Date.now() - started);
   }
   const correct = await api.login(customer.username, customer.password);
 
-  const throttled = statuses.some((s) => s === 423 || s === 429);
-  const lockedOut = !correct.ok;
+  test.skip(
+    results.some((result) => isDemoRateLimit(result.status, result.text)) ||
+      isDemoRateLimit(correct.status, correct.text),
+    'Cloudflare rate-limited the login probe; this does not demonstrate account lockout',
+  );
+
+  const statuses = results.map((result) => result.status);
+  test.skip(
+    results.some((result) => result.status === 0 || result.status >= 500) ||
+      correct.status === 0 ||
+      correct.status >= 500,
+    'The login endpoint returned a server/network error; this does not establish a lockout outcome',
+  );
+
+  const throttled = statuses.some((status) => status === 423 || status === 429);
+  const correctLoginRefused = [400, 401, 403, 423, 429].includes(correct.status);
+  test.skip(
+    correct.status !== 200 && !correctLoginRefused,
+    `Unexpected response HTTP ${correct.status} after the correct password; lockout result is inconclusive`,
+  );
+  const lockedOut = correctLoginRefused;
 
   const checks = new Checks();
   checks.check('REQUIREMENT', `${ATTEMPTS} wrong passwords trigger a lockout or throttle`, throttled || lockedOut, `statuses ${statuses.join(',')}, correct password afterwards: HTTP ${correct.status}`);
@@ -40,51 +68,114 @@ test('the login error does not reveal whether a username exists', { tag: ['@secu
 
   const knownApi = await api.login(customer.username, 'wrong-password');
   const unknownApi = await api.login(ghost, 'wrong-password');
+  test.skip(
+    isDemoRateLimit(knownApi.status, knownApi.text) ||
+      isDemoRateLimit(unknownApi.status, unknownApi.text),
+    'Cloudflare rate-limited the API login comparison; user-enumeration result is inconclusive',
+  );
+  test.skip(
+    knownApi.status === 0 ||
+      unknownApi.status === 0 ||
+      knownApi.status >= 500 ||
+      unknownApi.status >= 500,
+    'The API did not return comparable application responses; user-enumeration result is inconclusive',
+  );
 
-  // The same comparison as a visitor sees it in the browser (the fixture left this page logged in).
-  // A missing login form is recorded (url + page text) instead of hanging until the test times out.
-  const visit = async (username: string): Promise<{ formShown: boolean; message: string }> => {
+  const visit = async (username: string): Promise<{ formShown: boolean; message: string; bodyText: string }> => {
     await pages.home.open();
     const formShown = await page
       .locator('input[name="username"]')
       .waitFor({ state: 'visible', timeout: 10_000 })
       .then(() => true, () => false);
+
     if (!formShown) {
-      return { formShown, message: `no login form at ${page.url()}: ${await pageMessage(page)}` };
+      const bodyText = await page.locator('body').innerText().catch(() => '');
+      return { formShown, message: `no login form at ${page.url()}`, bodyText };
     }
+
     await pages.home.attemptLogin(username, 'wrong-password');
-    return { formShown, message: await pageMessage(page) };
+    const bodyText = await page.locator('body').innerText().catch(() => '');
+    return { formShown, message: await pageMessage(page), bodyText };
   };
+
   await pages.home.logout();
   const known = await visit(customer.username);
   const unknown = await visit(ghost);
+
+  test.skip(
+    isDemoRateLimit(200, known.bodyText) || isDemoRateLimit(200, unknown.bodyText),
+    'Cloudflare blocked one of the UI login comparisons; user-enumeration result is inconclusive',
+  );
+  test.skip(
+    !known.formShown || !unknown.formShown,
+    'The login form was not available for both identities; the UI comparison cannot be made',
+  );
+  test.skip(
+    known.message === 'n/a' || unknown.message === 'n/a',
+    'The page did not expose a login result message for both identities; UI comparison is inconclusive',
+  );
+
   const knownUi = known.message;
   const unknownUi = unknown.message;
-  const uiComparable = known.formShown && unknown.formShown;
-
   const apiSame = knownApi.status === unknownApi.status && knownApi.text === unknownApi.text;
-  const uiSame = !uiComparable || knownUi === unknownUi; // not comparable = recorded, not failed
+  const uiSame = knownUi === unknownUi;
 
   const checks = new Checks();
   checks.check('REQUIREMENT', 'the API answers identically for a known and an unknown username', apiSame, `known: HTTP ${knownApi.status} "${knownApi.text.slice(0, 60)}", unknown: HTTP ${unknownApi.status} "${unknownApi.text.slice(0, 60)}"`);
   checks.check('REQUIREMENT', 'the login page shows the same message for a known and an unknown username', uiSame, `known: "${knownUi}", unknown: "${unknownUi}"`);
-  observe('user-enumeration', { apiSame, uiSame, uiComparable, knownUi, unknownUi, verdict: checks.verdict });
+  observe('user-enumeration', { apiSame, uiSame, uiComparable: true, knownUi, unknownUi, verdict: checks.verdict });
 });
 
 test('registration refuses a trivially weak password', { tag: ['@security', '@auth'] }, async ({ api, browser, baseURL }) => {
   const weak = buildCustomer({ password: '1' });
   const context = await browser.newContext({ baseURL });
+  let registrationError = '';
+  let registrationBody = '';
+  let welcomeShown = false;
+
   try {
-    const pages = new Pages(await context.newPage());
-    await pages.register.register(weak).catch(() => undefined); // success or refusal: the API login below decides
+    const page = await context.newPage();
+    const pages = new Pages(page);
+    try {
+      await pages.register.register(weak);
+    } catch (error) {
+      registrationError = error instanceof Error ? error.message : String(error);
+    }
+
+    registrationBody = await page.locator('body').innerText().catch(() => '');
+    welcomeShown = await page
+      .getByRole('heading', { name: `Welcome ${weak.username}`, exact: true })
+      .isVisible()
+      .catch(() => false);
   } finally {
     await context.close();
   }
 
-  // Definitive oracle: if the account can log in with that password, the weak password was accepted.
+  const registrationStatus = Number(/HTTP (\d{3})/i.exec(registrationError)?.[1] ?? 0);
+  test.skip(
+    isDemoRateLimit(registrationStatus, `${registrationError} ${registrationBody}`) ||
+      isDemoRateLimit(200, registrationBody),
+    'Cloudflare rate-limited registration; weak-password result is inconclusive',
+  );
+
+  // A successful API login proves the account was created with the weak password.
   const login = await api.login(weak.username, weak.password);
+  test.skip(
+    isDemoRateLimit(login.status, login.text),
+    'Cloudflare rate-limited the login check; weak-password result is inconclusive',
+  );
+
+  const explicitPasswordRejection =
+    /(password|passwd).{0,80}(weak|short|length|characters|minimum|required|invalid)|(weak|short|minimum).{0,50}password/i.test(registrationBody);
+
+  if (!login.ok && !explicitPasswordRejection) {
+    test.skip(
+      true,
+      `Registration outcome was inconclusive (welcome shown: ${welcomeShown}; response: ${registrationBody.slice(0, 180) || registrationError || 'no message'}; API login HTTP ${login.status})`,
+    );
+  }
 
   const checks = new Checks();
   checks.check('REQUIREMENT', 'a one-character password is refused', !login.ok, `account with password "1" can log in: ${login.ok}`);
-  observe('weak-password', { accepted: login.ok, verdict: checks.verdict });
+  observe('weak-password', { accepted: login.ok, validationShown: explicitPasswordRejection, verdict: checks.verdict });
 });

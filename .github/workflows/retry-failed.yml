@@ -1,0 +1,160 @@
+name: Retry Failed Modules
+
+on:
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: 'Regenerate missing Linux visual baselines (review artifact before committing)'
+        type: boolean
+        required: true
+        default: false
+
+# Serialize all access to the shared, rate-limited ParaBank demo.
+concurrency:
+  group: parabank-demo
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CI: 'true'
+  BASE_URL: ${{ vars.BASE_URL || 'https://parabank.parasoft.com/parabank/' }}
+
+jobs:
+  retry-failed:
+    name: Retry failed modules sequentially
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Retry API module
+        id: api
+        continue-on-error: true
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/api
+      - name: Upload API evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: retry-api-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            findings/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Retry hybrid module
+        id: hybrid
+        continue-on-error: true
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/hybrid
+      - name: Upload hybrid evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: retry-hybrid-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            findings/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Retry negative module
+        id: negative
+        continue-on-error: true
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/negative
+      - name: Upload negative evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: retry-negative-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            findings/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Retry E2E module
+        id: e2e
+        continue-on-error: true
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/e2e
+      - name: Upload E2E evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: retry-e2e-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            findings/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Retry visual regression
+        id: visual
+        continue-on-error: true
+        run: |
+          if [[ "${{ inputs.update_snapshots }}" == "true" ]]; then
+            echo "Regenerating Linux visual baselines. Review the artifact before committing snapshots."
+            npx playwright test -c playwright.ci.config.ts --project=visual --workers=1 --retries=0 tests/visual --update-snapshots
+          else
+            echo "Comparing against committed Linux visual baselines."
+            npx playwright test -c playwright.ci.config.ts --project=visual --workers=1 --retries=0 tests/visual
+          fi
+      - name: Upload visual evidence and candidate baselines
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: retry-visual-${{ github.run_id }}
+          path: |
+            tests/visual/
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Summarize retry outcomes
+        if: always()
+        env:
+          API_OUTCOME: ${{ steps.api.outcome }}
+          HYBRID_OUTCOME: ${{ steps.hybrid.outcome }}
+          NEGATIVE_OUTCOME: ${{ steps.negative.outcome }}
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+          VISUAL_OUTCOME: ${{ steps.visual.outcome }}
+        run: |
+          {
+            echo "## Failed-module retry results"
+            echo
+            echo "| Module | Outcome |"
+            echo "|---|---|"
+            echo "| API | $API_OUTCOME |"
+            echo "| Hybrid | $HYBRID_OUTCOME |"
+            echo "| Negative | $NEGATIVE_OUTCOME |"
+            echo "| E2E | $E2E_OUTCOME |"
+            echo "| Visual regression | $VISUAL_OUTCOME |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$API_OUTCOME" != "success" || "$HYBRID_OUTCOME" != "success" || "$NEGATIVE_OUTCOME" != "success" || "$E2E_OUTCOME" != "success" || "$VISUAL_OUTCOME" != "success" ]]; then
+            echo "One or more retry modules failed. All five were still executed."
+            exit 1
+          fi
+
+          echo "All five previously failing modules passed."

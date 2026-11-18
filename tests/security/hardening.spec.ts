@@ -2,10 +2,23 @@ import { expect, test } from '../../fixtures/tracked';
 import { Checks } from '../../utils/checks';
 import { observe } from '../../utils/findings';
 
-// Browser-side hardening: response headers, cookie flags, caching, exposed admin console. Read-only checks.
+// Browser-side hardening: response headers, cookie flags, caching, exposed admin console.
+// A Cloudflare challenge page is an infrastructure block, not evidence of an application security control.
+function isDemoRateLimit(status: number, body: string): boolean {
+  const cloudflareBlock =
+    /error\s*1015|you are being rate limited|attention required/i.test(body) ||
+    (/cloudflare/i.test(body) && /rate.?limit|too many requests|temporarily blocked/i.test(body));
+
+  return cloudflareBlock && [0, 200, 403, 429, 503].includes(status);
+}
 
 test('the login page sends the standard security headers', { tag: ['@security'] }, async ({ request }) => {
   const response = await request.get('index.htm');
+  const bodyText = await response.text();
+  test.skip(
+    isDemoRateLimit(response.status(), bodyText),
+    'Cloudflare rate-limited this request; security-header result is inconclusive',
+  );
   const h = response.headers(); // names are lower-case
   const csp = h['content-security-policy'] ?? '';
 
@@ -30,6 +43,11 @@ test('the login page sends the standard security headers', { tag: ['@security'] 
 
 test('the session cookie carries the protective flags', { tag: ['@security'] }, async ({ page, pages }) => {
   await pages.overview.open();
+  const bodyText = await page.locator('body').innerText().catch(() => '');
+  test.skip(
+    isDemoRateLimit(200, bodyText),
+    'Cloudflare rate-limited registration or page navigation; cookie result is inconclusive',
+  );
   const cookies = await page.context().cookies();
   const session = cookies.find((c) => /jsessionid/i.test(c.name));
   expect(session, `a session cookie exists (cookies: ${cookies.map((c) => c.name).join(',')})`).toBeDefined();
@@ -44,6 +62,11 @@ test('the session cookie carries the protective flags', { tag: ['@security'] }, 
 test('signed-in pages are not cacheable', { tag: ['@security'] }, async ({ page, pages }) => {
   await pages.overview.open();
   const response = await page.request.get('overview.htm'); // same cookies as the signed-in page
+  const bodyText = await response.text();
+  test.skip(
+    isDemoRateLimit(response.status(), bodyText),
+    'Cloudflare rate-limited this request; cache-control result is inconclusive',
+  );
   const cacheControl = response.headers()['cache-control'] ?? 'missing';
 
   const checks = new Checks();
@@ -53,8 +76,12 @@ test('signed-in pages are not cacheable', { tag: ['@security'] }, async ({ page,
 
 // Read-only: the page is only LOOKED AT. Never click its buttons: they reset the shared demo database.
 test('the admin console is not reachable by an anonymous visitor', { tag: ['@security'] }, async ({ page }) => {
-  await page.goto('admin.htm');
+  const response = await page.goto('admin.htm');
   const bodyText = await page.locator('body').innerText();
+  test.skip(
+    isDemoRateLimit(response?.status() ?? 0, bodyText),
+    'Cloudflare rate-limited this request; admin-access result is inconclusive',
+  );
   const adminShown = /Administration|Data Access Mode|Initialize/i.test(bodyText);
 
   const checks = new Checks();

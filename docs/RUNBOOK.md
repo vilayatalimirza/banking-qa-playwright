@@ -19,35 +19,56 @@ How to run, read and maintain this suite. Everything runs against the public Par
 
 ## Commands
 
-```
-npx playwright test tests/unit                                    # seconds, run before every commit
-npx playwright test --grep @smoke                                 # critical journeys
-npx playwright test tests/security                                # one area
-npx playwright test -c playwright.ci.config.ts                    # everything: all projects, retries, junit + html
-npx playwright test -c playwright.ci.config.ts --project=firefox-smoke
-npx playwright test -c playwright.ci.config.ts --project=visual --update-snapshots   # (re)create visual baselines
-npx playwright show-report                                        # open the last HTML report
-npx tsx scripts/summarize-findings.ts                             # what the app actually did, as tables
-npx tsx scripts/defect-register.ts                                # open-defect register
+Run from the repository root:
+
+```powershell
+npm ci
+npx playwright install chromium
+npm run check                    # TypeScript typecheck + offline unit tests
+npm run test:full                # Full Chromium functional/security/API suite
+npm run test:smoke               # Critical Chromium journeys
+npm run test:cross-browser       # Firefox, WebKit and Pixel 7 smoke projects
+npm run test:visual              # Visual snapshots for the current OS
 ```
 
-One-time setup for the extra projects: `npm i -D @axe-core/playwright` and `npx playwright install firefox webkit`.
+Targeted debugging:
+
+```powershell
+npx playwright test tests/security
+npx playwright test tests/e2e/profile.spec.ts --headed
+npx playwright test --grep "@smoke"
+npx playwright show-report
+```
+
+Generate reports:
+
+```powershell
+npm run report:defects
+npm run report:findings
+npm run report:traceability
+npm run report:metrics -- test-results/results.json
+npm run report:evidence
+```
 
 ## Reading a result
 
-> `findings/observations.jsonl` is cleared at the start of every run. Run `scripts/summarize-findings.ts` right after the run you care about, before starting another.
+`findings/observations.jsonl` is cleared at the start of every run. Run `scripts/summarize-findings.ts` right after the run you care about, before starting another.
 
-- **Green with "expected failure" tests:** the suite is healthy. Open defects are listed in `data/known-defects.ts` and shown as passed.
-- **"Expected to fail, but passed":** a defect was fixed (or stopped reproducing). Re-run it a few times (`--repeat-each=5`); if it is consistently fixed, delete its entry in `data/known-defects.ts` and mark the report resolved.
-- **Red with a raw error:** a new finding, or a broken test. Open the trace: `npx playwright show-trace <path to trace.zip>`.
-- **Flaky (passed on retry, CI only):** never ignore it. Find the cause (a missing wait, shared state, the demo being slow) or quarantine with `test.fixme` plus a ticket.
+- **Expected defect failure:** a registered, documented defect guard failed as expected. This is not a successful requirement check and is excluded from pass-rate calculations.
+- **Expected pass:** the test passed on the first attempt.
+- **Flaky:** the test failed initially but passed on retry. It remains visible as flaky; it improves the final pass rate but not the first-attempt rate.
+- **Unexpected failure:** an ordinary test failed after retries, or a defect guard failed to meet its expected outcome. Inspect the trace and findings.
+- **Unexpected pass of a defect guard:** the behaviour may have changed. Reproduce it and update the finding before removing the marker.
+- **Skipped / not run:** reported separately and excluded from the pass-rate denominator.
+
+The metrics apply to the merged full Chromium functional suite only. Unit/typecheck, cross-browser smoke and visual jobs are separate CI jobs.
 
 ## Triage workflow for a new red
 
-1. Is the test wrong? Check the trace and the observation row first (`summarize-findings`).
+1. Is the test wrong? Check the trace and observation row first (`summarize-findings`).
 2. Reproduce it twice (`--repeat-each=2`) and, for money bugs, once through the API.
 3. Write a `## BUG-0xx` section in `docs/BUG-REPORTS.md` (template: `docs/bug-report-template.md`): steps, expected, actual, frequency, impact, severity and priority.
-4. Register the exact test title in `data/known-defects.ts`. Two guard tests enforce this: every defect needs a report (`bug-docs-consistency`), every spec must import a tracking fixture (`tracking-wiring`).
+4. Register the exact test title in `data/known-defects.ts`. Guard tests enforce that every registered defect has a report and every spec that needs it imports the tracking fixture.
 
 ## Debugging
 
@@ -57,11 +78,15 @@ One-time setup for the extra projects: `npm i -D @axe-core/playwright` and `npx 
 
 ## CI
 
-`.github/workflows/playwright.yml` (GitHub Actions) and `.gitlab-ci.yml` (GitLab CI) run the same stages: typecheck and unit, the full chromium suite, cross-browser smoke (Firefox, WebKit, Pixel 7), and visual regression. Reports (HTML, JUnit, `findings/observations.jsonl`) are kept as artifacts. Runs are serialized because the demo is shared. Nightly runs catch the demo changing under us.
+`.github/workflows/playwright.yml` is the validated GitHub Actions pipeline: typecheck/unit, the full Chromium suite, cross-browser smoke (Firefox, WebKit, Pixel 7), and visual regression. GitHub Actions merges the Chromium shards before generating run metrics, full traceability and the audit-evidence bundle. A `.gitlab-ci.yml` file is included, but it has not yet been validated on a GitLab runner.
+
+The public demo is shared and rate-limited. GitHub Actions serializes the two Chromium shards, then the cross-browser smoke jobs, then visual regression; this avoids simultaneous jobs competing for demo state. A workflow-level concurrency group prevents overlapping workflows from running against the demo at once.
+
+Preflight checks the home-page HTTP status and requires the actual `register.htm` navigation link. An HTTP error or challenge page stops the run early instead of producing repeated Register-locator timeouts. For API/hybrid tests, the `session` fixture reads the first account ID from the already-authenticated UI and resolves its customer ID through the account API; it does not issue a second API login merely to discover that ID. The registration page object also checks the navigation response and waits only five seconds for the Register link, then reports page text when the demo becomes unavailable mid-run.
 
 ## Visual regression
 
-Baselines are per operating system. Generate them where the comparison will run: locally for local runs, and in CI with the manual workflow input `update_snapshots` (downloads a `visual-baselines` artifact; commit its images). The visual job is advisory until Linux baselines are committed.
+Baselines are operating-system specific. The committed snapshots were captured on Windows; Linux comparisons are advisory until Linux baselines are captured, reviewed and committed. Generate baselines on the same OS where they will be compared. The GitHub Actions workflow has a manual `update_snapshots` input to capture Linux baselines as an artifact.
 
 ## Cross-browser notes
 

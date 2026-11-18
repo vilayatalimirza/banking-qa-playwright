@@ -38,6 +38,7 @@ function filesUnder(dir: string): string[] {
 // 1. Raw results from the run.
 copyIfExists('test-results/results.json', 'results/results.json');
 copyIfExists('test-results/junit.xml', 'results/junit.xml');
+copyIfExists('test-results/run-metrics.md', 'run-metrics.md');
 copyIfExists('findings/observations.jsonl', 'results/observations.jsonl');
 
 // 2. Requirement-by-requirement outcome, computed from the results (not from memory).
@@ -106,7 +107,7 @@ writeFileSync(
     'open-defects.md     defects that were open and tracked when the run happened',
     'run-metadata.json   commit, branch, run URL, base URL, tool versions',
     'attachments/        traces, videos and screenshots (if captured)',
-    'manifest.json      size and SHA-256 of every file above; manifest.sha256 is the hash of manifest.json',
+    'manifest.json      SHA-256 inventory of payload files (the manifest, its checksum and this README are excluded)',
     'Verify integrity later: recompute the hashes and compare; any change to a file changes its hash.',
   ].join('\n'),
 );

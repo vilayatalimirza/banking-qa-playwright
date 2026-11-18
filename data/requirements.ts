@@ -224,6 +224,7 @@ export const REQUIREMENTS: Requirement[] = [
       { file: 'unit/tracking-wiring' },
       { file: 'unit/bug-docs-consistency' },
       { file: 'unit/traceability' },
+      { file: 'unit/run-metrics' },
     ],
   },
 ];

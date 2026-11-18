@@ -1,0 +1,40 @@
+name: Registration locator diagnostic
+
+on:
+  pull_request:
+    paths:
+      - 'tests/diagnostics/register-first-name.spec.ts'
+      - '.github/workflows/registration-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Share the same lock as the other ParaBank workflows.
+concurrency:
+  group: parabank-demo
+  cancel-in-progress: false
+
+jobs:
+  registration-diagnostic:
+    name: Registration first-name diagnostic (Chromium, one test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run only the registration diagnostic
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 --repeat-each=3 tests/diagnostics/register-first-name.spec.ts
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: registration-locator-diagnostic
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

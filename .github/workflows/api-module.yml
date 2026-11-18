@@ -1,0 +1,69 @@
+name: API module
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/api-module.yml'
+      - 'tests/api/**'
+      - 'api/**'
+      - 'fixtures/api.ts'
+      - 'fixtures/index.ts'
+      - 'pages/RegisterPage.ts'
+      - 'utils/money.ts'
+      - 'data/factories.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Share the lock with every ParaBank workflow.
+concurrency:
+  group: parabank-demo
+  cancel-in-progress: false
+
+jobs:
+  api:
+    name: API module (Chromium, sequential)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: TypeScript compile
+        run: npx tsc --noEmit
+      - name: Unit tests
+        run: npm run test:unit
+      - name: API tests only
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          run_playwright() {
+            npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 "$@"
+          }
+
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -v '^\\.github/workflows/' || true)"
+            if [[ "$changed_files" == "tests/api/accounts-api.spec.ts" ]]; then
+              echo "Isolated hybrid account check change detected; running that test only."
+              run_playwright tests/api/accounts-api.spec.ts --grep "the API and the Accounts Overview agree on every balance"
+              exit $?
+            fi
+          fi
+
+          run_playwright tests/api
+      - name: Upload API evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-module-results
+          path: |
+            test-results/
+            findings/
+          if-no-files-found: ignore
+          retention-days: 14

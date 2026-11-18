@@ -1,0 +1,48 @@
+name: Reconciliation E2E
+
+on:
+  pull_request:
+    paths:
+      - 'tests/e2e/reconciliation.spec.ts'
+      - 'pages/TransferPage.ts'
+      - 'pages/OverviewPage.ts'
+      - 'pages/activity.ts'
+      - 'fixtures/index.ts'
+      - '.github/workflows/e2e-module.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Share the lock with every ParaBank workflow.
+concurrency:
+  group: parabank-demo
+  cancel-in-progress: false
+
+jobs:
+  reconciliation:
+    name: Reconciliation E2E (Chromium, sequential)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: TypeScript compile
+        run: npx tsc --noEmit
+      - name: Run reconciliation test only
+        run: npx playwright test -c playwright.ci.config.ts --project=chromium --workers=1 --retries=0 tests/e2e/reconciliation.spec.ts
+      - name: Upload reconciliation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconciliation-e2e-results
+          path: |
+            test-results/
+            findings/
+          if-no-files-found: ignore
+          retention-days: 14

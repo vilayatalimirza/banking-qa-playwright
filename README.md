@@ -1,115 +1,97 @@
-# banking-qa-playwright
+# Banking QA Automation
 
-A banking QA automation project: Playwright + TypeScript against the public demo bank [ParaBank](https://parabank.parasoft.com/parabank/).
-It treats money rules as the thing under test (conservation of money, idempotency, reconciliation, double entry, double deductions) and documents **21 potential defect reports and 2 compliance gaps** from testing the demo. These are test-run findings, not a claim that every issue is currently reproducible; some remain observed or need confirmation. Confirmed examples include negative bill pay crediting the payer and an unauthenticated API transfer debiting another customer's account.
+[![Playwright CI](https://github.com/vilayatalimirza/banking-qa-playwright/actions/workflows/playwright.yml/badge.svg)](https://github.com/vilayatalimirza/banking-qa-playwright/actions/workflows/playwright.yml)
 
-### Highlights
-- **21 potential defects and 2 compliance gaps** documented in [docs/BUG-REPORTS.md](docs/BUG-REPORTS.md); some findings remain unconfirmed.
-- **Money-first testing:** integer-cent maths, conservation of money, idempotency, reconciliation and double-entry checks.
-- **Risk-based regression pack:** 24 requirements scored by impact × likelihood, with a [traceability matrix](docs/TRACEABILITY.md).
-- **Audit evidence:** pipeline runs produce a hashed evidence bundle.
-- **Shared-demo resilience:** known-defect tracking, retries with traces, and a [flaky-test log](docs/FLAKY-LOG.md).
+**Playwright + TypeScript test framework for the public ParaBank demo.** It tests money movement, financial invariants, account isolation, API behaviour, security controls, accessibility, resilience and auditability.
 
-**Stack**
+The focus is not just whether a button works. It is whether balances remain correct, one payment intent is applied once, customer data stays isolated, and failures can be explained with evidence.
 
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)
-![Playwright](https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=white)
-![axe-core](https://img.shields.io/badge/axe--core-7C3AED?logo=accessibility&logoColor=white)
-![npm](https://img.shields.io/badge/npm-CB3837?logo=npm&logoColor=white)
+## Project evidence
 
-**Coverage and platforms**
-
-![REST API](https://img.shields.io/badge/REST_API-tested-005571)
-![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)
-![GitLab CI](https://img.shields.io/badge/GitLab_CI-FC6D26?logo=gitlab&logoColor=white)
-![HTML Reports](https://img.shields.io/badge/HTML-Reports-E34F26?logo=html5&logoColor=white)
-
-## Reports
-
-| Test report | Requirement traceability |
+| Area | Current scope |
 |---|---|
-| ![HTML report](docs/img/html-report.png) | ![Traceability](docs/img/traceability.png) |
+| Requirements | 24 risk-scored requirements across payments, security, compliance, accessibility and framework quality |
+| Defect findings | 21 numbered BUG reports; confirmation state and evidence are recorded per finding |
+| Compliance exercises | 2 separately labelled control gaps: PSD2 SCA and KYC validation |
+| Expected-failure registry | 35 test titles across 20 identifiers (19 BUG IDs and GAP-001); GAP-002 is conditionally marked only when invalid SSN registration creates a customer |
+| Test levels | Unit, page contract, UI E2E, API, hybrid, negative, resilience, security, accessibility, visual and compliance |
 
-The images are illustrative screenshots. GitHub Actions uploads the generated HTML report and an [audit-evidence bundle](scripts/evidence-bundle.ts) as run artifacts; GitLab CI archives its reports and test results. The committed [traceability matrix](docs/TRACEABILITY.md) is a static test-to-requirement listing unless generated with run results; it does not represent the latest test outcome.
+See [BUG-REPORTS.md](docs/BUG-REPORTS.md), [TEST-STRATEGY.md](docs/TEST-STRATEGY.md), and [TRACEABILITY.md](docs/TRACEABILITY.md). Two registered findings (BUG-006 and BUG-019) remain marked to-confirm. BUG-011 and BUG-020 are documented findings but are not currently registered as expected-failure guards.
 
-## What it demonstrates
+## CI results and pass-rate methodology
 
-| Area | Where |
-|---|---|
-| Page objects + fixtures (`customer`, `pages`, `twoAccounts`, `secondUser`, `api`) | `pages/`, `fixtures/` |
-| Money as integer cents (parse, format, round) with unit tests | `utils/money.ts`, `tests/unit/` |
-| Invariants vs requirements (`Checks`, soft assertions), observed-behaviour log | `utils/checks.ts`, `utils/findings.ts` |
-| API testing and hybrid UI + API flows | `api/`, `tests/api/`, `tests/hybrid/` |
-| Negative, idempotency, concurrency, injection | `tests/negative/` |
-| Network-failure and mocking scenarios | `tests/resilience/` |
-| Security: sessions, brute force, headers, IDOR, fixation | `tests/security/` |
-| Accessibility (axe-core, WCAG A/AA) and visual regression | `tests/a11y/`, `tests/visual/` |
-| Compliance: double entry, audit trail, PSD2 SCA gap, KYC | `tests/compliance/` |
-| Known-defect tracking (open bug = expected failure, fixed bug turns red) | `data/known-defects.ts`, `fixtures/tracked.ts` |
-| Requirement traceability + risk-based tiers | `data/requirements.ts`, `docs/TRACEABILITY.md` |
-| Audit-evidence bundle with SHA-256 manifest, one per pipeline run | `scripts/evidence-bundle.ts` |
-| CI: GitHub Actions and GitLab CI, sharding, cross-browser smoke | `.github/workflows/`, `.gitlab-ci.yml` |
+Each GitHub Actions full-suite run generates a **run-specific metrics summary** in the workflow summary and audit-evidence artifact. It reports:
+
+- **First-attempt pass rate:** tests that passed without retry.
+- **Final pass rate:** tests that passed on the first attempt or passed after retry.
+- **Flaky tests, unexpected failures, and defect guards that unexpectedly pass:** shown as separate counts.
+- **Known-defect probes that fail as expected and skipped tests:** shown separately and excluded from the pass-rate denominator.
+
+The metrics cover the merged **full Chromium suite**. Unit/typecheck, Firefox, WebKit, Pixel 7 smoke and visual jobs are separate CI jobs; they are not mixed into the Chromium pass rate. A retry-passed test improves the final rate but remains visible as flaky.
+
+[View workflow runs and their per-run summaries](https://github.com/vilayatalimirza/banking-qa-playwright/actions/workflows/playwright.yml). Run artifacts include the merged HTML report and a SHA-256 audit-evidence bundle.
+
+## Technology
+
+- TypeScript, Node.js, Playwright Test
+- Page Object Model and typed fixtures
+- REST API testing and UI/API hybrid flows
+- Integer-cent money utilities and financial invariants
+- axe-core accessibility checks and visual regression
+- GitHub Actions (validated workflow); a GitLab CI configuration is included but not yet validated on a GitLab runner
+- JSON/JUnit/HTML reporting, requirement traceability and SHA-256 evidence manifests
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  subgraph Tests
-    U[unit] --- C[contract]
-    E[e2e / negative / security / a11y / visual]
-    A[api / hybrid / compliance]
-  end
-  E --> P[Page objects]
-  A --> API[ParaBankApi client]
-  P --> F[Fixtures: customer, pages, api]
-  API --> F
-  F --> T[tracked: known-defect marker]
-  E & A --> K[Checks + observe]
-  K --> O[(findings/observations.jsonl)]
-  T --> R[Reporters: list, html, junit, json, requirements]
-  R --> M[traceability.md]
-  R --> B[evidence bundle + manifest]
-  DEF[data/known-defects.ts] --> T
-  REQ[data/requirements.ts] --> M
+  T[Tests: UI / API / negative / security / compliance] --> F[Typed fixtures]
+  F --> P[Page objects]
+  F --> A[ParaBank API client]
+  T --> C[Checks and observations]
+  C --> O[(findings JSONL)]
+  T --> R[Playwright reports]
+  R --> X[Requirement traceability]
+  R --> E[Audit evidence bundle]
 ```
 
-## How to run
+## Run locally
 
 ```powershell
 npm ci
 npx playwright install chromium
-npx tsc --noEmit                                   # type check
-npx playwright test -c playwright.ci.config.ts --project=chromium tests/unit      # fast, offline
-npx playwright test -c playwright.ci.config.ts --project=chromium                 # full suite against ParaBank
-npx playwright test -c playwright.ci.config.ts --project=chromium --grep @smoke   # critical journeys
-npx tsx scripts/defect-register.ts                 # open defects table
-npx tsx scripts/summarize-findings.ts              # what the bank actually did
-npx tsx scripts/traceability.ts                    # regenerate docs/TRACEABILITY.md
-npx tsx scripts/evidence-bundle.ts                 # evidence/<run>/ after a run
+npm run check
+npm run test:full
+npm run test:smoke
+npm run test:cross-browser
+npm run test:visual
 ```
 
-More in [docs/RUNBOOK.md](docs/RUNBOOK.md).
+Useful reports:
 
-## Reading the results
-
-Green does not mean "the bank is correct". Tests for known defects are marked *expected to fail*: they pass while the bug exists and turn red ("Expected to fail, but passed") when it is fixed, so the register never rots. Every defect has a written report in `docs/BUG-REPORTS.md`.
-
-## Folder structure
-
-```
-api/        REST client for ParaBank          pages/      page objects
-fixtures/   test fixtures                     utils/      money, checks, findings, a11y, traceability
-data/       factories, known defects, requirements
-tests/      unit contract e2e negative api hybrid resilience security a11y visual compliance
-reporters/  requirements reporter             scripts/    CLI tools (summaries, traceability, evidence)
-docs/       strategy, plan, traceability, defects, concepts, flaky log
+```powershell
+npm run report:defects
+npm run report:findings
+npm run report:traceability
+npm run report:metrics -- test-results/results.json
+npm run report:evidence
 ```
 
-## Honest limits
+More detail: [RUNBOOK.md](docs/RUNBOOK.md).
 
-ParaBank is a shared demo that resets and is rate-limited, so some runs show environmental flakes (see `docs/FLAKY-LOG.md`). It is not a real core banking system: there is no general ledger, EOD, interest accrual, SCA or sanctions screening to test, only what a customer can see.
+## Important limitations
 
-## About the author
-QA engineer (3 years, Selenium/Java moving to Playwright/TypeScript), focusing on banking and fintech testing.
-[LinkedIn](https://www.linkedin.com/in/vilayat-ali-mirza)
+- ParaBank is a shared public demo. It can reset, slow down or rate-limit requests. CI serializes demo-facing jobs and uses one worker per Chromium shard; preflight rejects HTTP errors and challenge pages before the suite starts. Retries are reported, not hidden.
+- The complete automated regression suite runs in Chromium. Firefox, WebKit and Pixel 7 run the tagged critical smoke journeys only.
+- The committed visual baselines were captured on Windows. Linux visual comparison is currently advisory until Linux baselines are captured and reviewed.
+- This is not a real core-banking system. It does not expose a general ledger, end-of-day processing, real payment rails, sanctions screening or production identity verification.
+- A passing automated accessibility scan is not proof of WCAG conformance; manual assistive-technology testing remains necessary.
+- The GitLab CI YAML is included for portability but has not been validated with a GitLab-hosted pipeline. Published CI evidence currently comes from GitHub Actions.
+
+The findings describe observed behaviour of this demo application, not vulnerabilities in a production bank. Some findings require confirmation, and the report states the evidence limits.
+
+## About
+
+QA engineer with 3+ years focused on software testing and automation, with a broader IT background. Current project work combines Java/Selenium experience with Playwright and TypeScript.
+
+[GitHub](https://github.com/vilayatalimirza) · [LinkedIn](https://www.linkedin.com/in/vilayat-ali-mirza)
